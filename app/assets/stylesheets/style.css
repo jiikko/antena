@@ -1,0 +1,226 @@
+body {
+    background-image: image-url("background.jpg");
+    color: #555555;
+    margin: 0;
+}
+hr {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+div.navbar {
+    background-color: #E8AAAC;
+}
+div#nav {
+    margin: 0;
+    height: 38px;
+    display: block;
+    margin-bottom: 8px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0;
+    position: relative;
+    text-align: left;
+    width: 1000px;
+}
+#nav li {
+    text-align: center;
+    float: right;
+    width: auto;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    display: block;
+    margin-right: 100px;
+}
+#nav li a {
+    width: auto;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    display: block;
+    padding: 8px 0;
+    text-decoration: none;
+    background: #E8AAAC;
+}
+#nav_left {
+    float: left;
+    padding-top: 6px;
+}
+.site_name {
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 16px;
+}
+#nav_right {
+    float: right;
+}
+div#footer {
+    margin: 0;
+    width: 100%;
+    height: 290px;
+    background-color: #E8AAAC;
+    display: block;
+    margin-top: 30px;
+}
+div#footer_body {
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0;
+    position: relative;
+    text-align: left;
+    width: 1000px;
+    padding-top: 30px;
+}
+div.opinion_left {
+    float: left;
+    width: 500px;
+}
+div.opinion_right {
+    float: left;
+    width: 500px;
+}
+div.footer_credit {
+    width: 100%;
+    text-align: center;
+    height: 50px;
+    padding-top: 30px;
+}
+.cearfix {
+    clear: both;
+}
+p.description {
+    margin-bottom: 20px;
+}
+div.head {
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0;
+    position: relative;
+    text-align: left;
+    width: 1000px;
+}
+div.head_left {
+    float: left;
+    width: 500px;
+}
+div.head_right {
+    float: left;
+    width: 500px;
+    margin-top: 50px;
+}
+a.twitter-share-button {
+    margin-top: 10px;
+}
+#base {
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0;
+    position: relative;
+    text-align: left;
+    width: 1100px;
+}
+#headline_block {
+    background-color: #ffffff;
+    height: 650px;
+    overflow: auto;
+    padding: 10px 0px 10px 10px;
+}
+#headline_block a, .box a {
+    color: #555555;
+    text-decoration: none;
+    padding-top: 3px;
+    padding-bottom: 6px;
+}
+#headline_block td {
+    padding-top: 3px;
+}
+#headline_block a:hover, .box a:hover {
+    background-color: #dddddd;
+    text-decoration: none;
+}
+#headline_body {
+    color: #8b8878;
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: left;
+}
+tr.current_post td {
+    color: red;
+}
+#menu {
+    width: 740px;
+    height: 40px;
+    padding: 0;
+    margin: 0;
+    list-style-type: none;
+}
+#menu li {
+    width: 100px;
+    height: 40px;
+    float: left;
+    padding: 0;
+    margin: 0;
+    text-align: center;
+}
+#menu li a {
+    width: auto;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 10px 0;
+    text-decoration: none;
+    display: block;
+    background: #E8AAAC;
+}
+#menu li a:hover {
+    background: red;
+}
+#menu li a.active {
+    background: red;
+}
+#top {
+    background-color: #B7DDFF;
+    padding: 5px 5px 5px 5px;
+    width: 720px;
+}
+li.content {
+    float: left;
+    text-align: left;
+    width: 340px;
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-top: 10px;
+}
+li.post_by_site {
+    color: #555555;
+    padding: 4px 0px 4px 0px;
+    background-color: #fff;
+}
+li.post_by_site a {
+    text-decoration: none;
+    color: #555555;
+    padding: 5px 5px 5px 5px;
+}
+li.post_by_site a:hover {
+    text-decoration: none;
+    background-color: #dddddd;
+}
+div.sitetitle {
+    background-color: #E8AAAC;
+    padding: 5px 5px 5px 20px;
+}
+.containar {
+    display: table;
+    width: 1050px;
+}
+.containar .left_columm {
+    display: table-cell;
+    width: 600px;
+}
+.containar .right_column {
+    vertical-align: top;
+    padding-top: 0px;
+    padding-left: 20px;
+    display: table-cell;
+    width: 310px;
+}
+

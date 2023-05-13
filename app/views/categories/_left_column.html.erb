@@ -1,0 +1,55 @@
+<div id="top">
+  <div id="headline_block">
+    <table id="headline_body">
+      <tbody>
+        <% cache [:posts, @category_name], expires_in: 15.minute do %>
+          <% @posts.each do |post| %>
+            <%= date_label(post) %>
+            <tr>
+              <td width="50px"><%= post.created_at.to_s(:time) %></td>
+              <td class="mawarikomi" width="500px">
+                <%= link_to post.url, target: "_blank", data: { ob: true } do %>
+                  <%= post.name %>
+                <% end %>
+                <%= link_to '[preview]', post, class: 'preview_link', data: { preview: true } %>
+              </td>
+              <td><%= link_to post.site.name, post.site.url, target: "_blank" %></td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="main">
+    <ul id="sites">
+      <% @sites.each_with_index do |site, index| %>
+        <% if index == 5 %>
+          <li class="content">
+            <%= render 'shared/ad/pc/banner_in_content' %>
+          </li>
+        <% elsif index == 11 %>
+          <li class="content">
+            <%= render 'shared/ad/pc/banner_in_content2' %>
+          </li>
+        <% end %>
+        <li class="content">
+          <div class="sitetitle">
+            <%= link_to site.name, site %>
+          </div>
+          <ul>
+            <% (@site_id_posts_map[site.id] || []).each do |post| %>
+              <li class="post_by_site">
+                <%= link_to post.name, post.url, target: '_blank', data: { ob: true } %>
+                <%= link_to '[preview]', post, class: 'preview_link', data: { preview: true } %>
+              </li>
+            <% end %>
+            <li class="post_by_site" style="text-align:right">
+              <%= link_to "続きを見る", site %>
+            </li>
+          </ul>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+</div>

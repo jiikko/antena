@@ -1,6 +1,4 @@
 Rails.application.routes.draw do
-  default_url_options host: "prpr-antena.com"
-
   root 'categories#show'
 
   get '/toggle_pc_view' => 'home#toggle_pc_view', as: :toggle_pc_view

@@ -13,3 +13,37 @@
  *= require_tree .
  *= require_self
  */
+
+
+.center {
+  text-align: center;
+}
+
+.top-buffer {
+  margin-top: 20px;
+}
+
+.link-left-buffer a.buffer {
+  padding-right: 6px;
+  display: inline-block;
+}
+
+.post_show_content {
+  background-color: white;
+  padding-left: 10px;
+}
+
+.attenction {
+  background-color: white;
+  border-style: solid;
+  margin-bottom: 10px;
+  padding-left: 5px;
+}
+
+.iikanji_yohaku {
+  padding: 10px;
+}
+
+li.margin_bottom {
+  margin-bottom: 40px;
+}
