@@ -11,7 +11,7 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema[7.0].define(version: 2023_05_13_090632) do
-  create_table "admin_users", charset: "utf8mb4", force: :cascade do |t|
+  create_table "admin_users", charset: "utf8mb4", collation: "utf8mb4_bin", force: :cascade do |t|
     t.string "name", null: false
     t.string "email"
     t.string "crypted_password"
@@ -20,7 +20,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_05_13_090632) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "categories", charset: "utf8mb4", force: :cascade do |t|
+  create_table "categories", charset: "utf8mb4", collation: "utf8mb4_bin", force: :cascade do |t|
     t.string "name"
     t.string "slug"
     t.string "identity"
@@ -28,7 +28,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_05_13_090632) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "posts", charset: "utf8mb4", force: :cascade do |t|
+  create_table "posts", charset: "utf8mb4", collation: "utf8mb4_bin", force: :cascade do |t|
     t.string "name"
     t.string "url"
     t.text "summary"
@@ -45,7 +45,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_05_13_090632) do
     t.index ["url"], name: "index_posts_on_url"
   end
 
-  create_table "sites", charset: "utf8mb4", force: :cascade do |t|
+  create_table "sites", charset: "utf8mb4", collation: "utf8mb4_bin", force: :cascade do |t|
     t.string "name"
     t.string "url"
     t.string "rss_url"
