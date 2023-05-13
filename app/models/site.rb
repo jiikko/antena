@@ -1,5 +1,3 @@
-require 'open-uri'
-
 class Site < ApplicationRecord
   before_create :site_to_rss_url
   after_create :set_site_meta
@@ -22,9 +20,14 @@ class Site < ApplicationRecord
   def site_to_rss_url
     return if self.rss_url.present?
 
-    doc = Nokogiri::HTML(open(self.url)) rescue (@destroy_flag = true; return)
-    if doc.css("div").blank?
-      doc = Nokogiri::XML(open(self.url))
+    response = Net::HTTP.get_response(URI(url))
+    doc = nil
+    begin
+      doc = Nokogiri::HTML(response.body) 
+    rescue => e
+      Rails.logger.error e
+      self.update!(enable: false)
+      return
     end
 
     doc.css("link").each do |ele|
@@ -37,23 +40,17 @@ class Site < ApplicationRecord
 
   # サイト名を取得
   def set_site_meta
-    if @destroy_flag
-      destroy
-      return
-    end
-
     if self.rss_url
-      feed = Feedjira::Feed.fetch_and_parse(self.rss_url)
+      response = Net::HTTP.get_response(URI(rss_url))
+      feed = Feedjira.parse(response.body)
       self.name = feed.title
-      self.url = feed.url
       self.save
     else
       p "[error] サイト名とRSS_URLを取得できませんでした。at #{self.url}"
     end
-  end
-
-  def rocketnews?
-    name == 'ロケットニュース24'
+  rescue => e
+    Rails.logger.error e
+    self.update!(enable: false)
   end
 end
 

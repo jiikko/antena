@@ -9,6 +9,6 @@ class CategoriesController < ApplicationController
       limit(150)
 
     @sites = @category.sites.order("position ASC")
-    # @site_id_posts_map = Post.posts_by(sites: @sites).group_by { |x| x.site_id }
+    @site_id_posts_map = Post.posts_by(sites: @sites).group_by { |x| x.site_id }
   end
 end

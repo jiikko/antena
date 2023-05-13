@@ -6,7 +6,7 @@
           <% @posts.each do |post| %>
             <%= date_label(post) %>
             <tr>
-              <td width="50px"><%= post.created_at.to_s(:time) %></td>
+              <td width="50px"><%= post.created_at.to_fs(:time) %></td>
               <td class="mawarikomi" width="500px">
                 <%= link_to post.url, target: "_blank", data: { ob: true } do %>
                   <%= post.name %>

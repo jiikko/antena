@@ -48,7 +48,8 @@ class Post < ApplicationRecord
     return nil if site.nil? or site.rss_url.nil?
     # フィード取得
     begin
-      feed = Feedjira::Feed.fetch_and_parse(site.rss_url)
+      response = Net::HTTP.get_response(URI(site.rss_url))
+      feed = Feedjira.parse(response.body)
     rescue Faraday::TimeoutError
       Rails.logger.info "[Faraday::TimeoutError] #{site.inspect}"
       return
@@ -76,9 +77,6 @@ class Post < ApplicationRecord
           post.url = item.url
           post.summary = item.summary
           post.content = item.content
-          if site.rocketnews?
-            post.content = ContentClearnupService.new(post).content
-          end
           post.content = post.content_without_script_tag
           # 記事がfindで見つかったら登録しない。
         }
@@ -192,29 +190,6 @@ class Post < ApplicationRecord
     doc.css("[id=article_mid]").remove
     doc.css(".kijinai").remove
     self.content = doc.to_html
-  end
-
-  def only_image_tags_by_content
-    if content_without_script_tag
-      Nokogiri::HTML(content).css("img").map { |x|
-        unless x.to_html.include?('width="1"')
-          x.to_html
-        end
-      }.join.html_safe
-    end
-  end
-
-  def word_tag_list=(names)
-    if names.is_a?(String)
-      names = names.split(",")
-    end
-    self.word_tags = names.map do |n|
-      WordTag.where(name: n.strip).first_or_create!
-    end
-  end
-
-  def reindex
-    PostWordTagger.new(self).reindex
   end
 
   def clean_content!
