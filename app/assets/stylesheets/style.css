@@ -1,5 +1,5 @@
 body {
-    background-image: image-url("background.jpg");
+    background-image: url("/background.jpg");
     color: #555555;
     margin: 0;
 }
@@ -8,6 +8,7 @@ hr {
 }
 div.navbar {
     background-color: #E8AAAC;
+    height: 37px;
 }
 div#nav {
     margin: 0;
@@ -113,6 +114,7 @@ a.twitter-share-button {
 #base {
     margin-left: auto;
     margin-right: auto;
+    margin-top: 10px;
     padding: 0;
     position: relative;
     text-align: left;
@@ -208,15 +210,15 @@ div.sitetitle {
     background-color: #E8AAAC;
     padding: 5px 5px 5px 20px;
 }
-.containar {
+.container {
     display: table;
     width: 1050px;
 }
-.containar .left_columm {
+.container .left_columm {
     display: table-cell;
     width: 600px;
 }
-.containar .right_column {
+.container .right_column {
     vertical-align: top;
     padding-top: 0px;
     padding-left: 20px;
