@@ -1,5 +1,7 @@
-AdminUser.find_or_create_by!(name: "koji") do |admin_user|
-  admin_user.password = "hogehoge"
+if Rails.env.development?
+  AdminUser.find_or_create_by!(name: "koji") do |admin_user|
+    admin_user.password = "hogehoge"
+  end
 end
 
 category = Category.find_or_create_by!(name: "ＶＩＰ", slug: "vip")
