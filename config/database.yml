@@ -3,16 +3,26 @@ default: &default
   encoding: utf8mb4
   charset: utf8mb4
   collation: utf8mb4_bin
+
+development:
+  <<: *default
+  database: antena_development
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   host: <%= ENV.fetch('DATABASE_HOST', 'db') %>
   username: <%= ENV.fetch('DATABASE_USERNAME', 'root') %>
   password: <%= ENV['DATABASE_PASSWORD'] %>
   port: <%= ENV['DATABASE_PORT'] %>
 
-development:
-  <<: *default
-  database: antena_development
-
 test:
   <<: *default
   database: <%= ENV.fetch('DATABASE_DB', 'antena_test') %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  host: <%= ENV.fetch('DATABASE_HOST', 'db') %>
+  username: <%= ENV.fetch('DATABASE_USERNAME', 'root') %>
+  password: <%= ENV['DATABASE_PASSWORD'] %>
+  port: <%= ENV['DATABASE_PORT'] %>
+
+# 本番ではDATABASE_URL経由で取得するのでprecompileを通すために適当に埋める
+production:
+  <<: *default
+  database: antena_production
