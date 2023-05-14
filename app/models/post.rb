@@ -27,8 +27,6 @@ class Post < ApplicationRecord
 
   before_save :remove_kanren_text_in_content
 
-  # moduleにするべきだな
-  # modeule rss_readable
   def self.rss_to_post(site: nil)
     return nil if site.nil? or site.rss_url.nil?
     # フィード取得
@@ -77,28 +75,18 @@ class Post < ApplicationRecord
     counter
   end
 
-  def self.search(word)
-    # 早い順
-    # Post.joins(:word_tags).where(word_tags: { name: word })
-    # Post.joins(:word_tags).where(word_tags: { id: WordTag.where(name: "オリジナル") })
-    # Post.joins(:word_tags).where(word_tags: { id: WordTag.where(name: word) })
-    Post.where(
-      id: WordTagging.where(
-        word_tag_id: WordTag.where(
-          name: word
-        ).ids
-      ).pluck(:post_id).uniq
-    )
-  end
-
-  # 全サイトのrssを取得しにいく。treadつかう？
+  # 全サイトのrssを取得しにいく
   def self.all_rss_to_post
     Site.enable.find_each do |site|
-      if plus_number = Post.rss_to_post(site: site)
-        p "#{site.name} sussecc!!(+#{plus_number})"
-      else
-        # エラーの原因は、RSS_URLが誤っているからかも
-        p "[error] #{site.name}"
+      begin
+        if(plus_number = Post.rss_to_post(site: site))
+          Rails.logger.info "#{site.name} sussecc!!(+#{plus_number})"
+        else
+          # エラーの原因は、RSS_URLが誤っているからかも
+          Rails.logger.error "[error] #{site.name}"
+        end
+      rescue => e
+        Rails.logger.error e
       end
     end
   end
@@ -116,10 +104,6 @@ class Post < ApplicationRecord
     count = posts.size
     posts.flatten.each{ |post| post.destroy }
     p "[notice] #{count}記事削除しました。"
-  end
-
-  def self.word_tagged(words)
-    self.joins(:word_tags).where(word_tags: { name: [words] })
   end
 
   # http://ngyuki.hatenablog.com/entry/20120724/p1
