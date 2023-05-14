@@ -77,7 +77,6 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY_BASE: ${{ secrets.SECRET_KEY_BASE }}
-          REDISCLOUD_URL: ${{ secrets.REDISCLOUD_URL }}
         run: |
           gcloud run deploy "$SERVICE_NAME" \
             --project="$PROJECT_ID" \
