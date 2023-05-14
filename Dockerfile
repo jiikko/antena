@@ -19,8 +19,6 @@ RUN bundle install --jobs 100
 FROM base as production
 LABEL image.type=production
 ENV RAILS_ENV production
-ARG RAILS_MASTER_KEY
-ENV RAILS_MASTER_KEY=$RAILS_MASTER_KEY
 
 COPY . .
 RUN bundle install --jobs 10 --without development,test
