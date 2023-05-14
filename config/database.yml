@@ -21,4 +21,4 @@ test:
 production:
   <<: *default
   database: antena_production
-  url: <%= ENV['DATABASE_URL2'] %>
+  url: <%= ENV['DATABASE_URL'] %>
