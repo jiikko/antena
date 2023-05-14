@@ -61,3 +61,76 @@ jobs:
           tags: ${{ env.REGISTRY_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/web:master-${{ github.sha }} , ${{ env.REGISTRY_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/web:master
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Add SHORT_SHA env property with commit short sha
+        run: echo "SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)" >> "$GITHUB_ENV"
+      - id: "auth"
+        uses: "google-github-actions/auth@v0"
+        with:
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
+      - name: Deploy to Cloud Run
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY_BASE: ${{ secrets.SECRET_KEY_BASE }}
+          REDISCLOUD_URL: ${{ secrets.REDISCLOUD_URL }}
+        run: |
+          gcloud run deploy "$SERVICE_NAME" \
+            --project="$PROJECT_ID" \
+            --platform=managed \
+            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
+            --region="asia-northeast1" \
+            --tag="master-${SHORT_SHA}" \
+            --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
+            --set-env-vars="SECRET_KEY_BASE=${SECRET_KEY_BASE}" \
+            --set-env-vars="RAILS_ENV=production" \
+            --allow-unauthenticated
+
+  promote_new_revision:
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add SHORT_SHA env property with commit short sha
+        run: echo "SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)" >> "$GITHUB_ENV"
+      - id: "auth"
+        uses: "google-github-actions/auth@v0"
+        with:
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
+      - name: Update traffic
+        # NOTE: デプロイした直後だと、トラフィックの移行先が見えないことがあるのでretryする、と思ったけどneedsの指定が間違っていただけの可能性がある
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 5
+          timeout_minutes: 5
+          command: |
+            gcloud beta run services update-traffic "$SERVICE_NAME" \
+              --project="$PROJECT_ID" \
+              --platform=managed \
+              --to-tags="master-${SHORT_SHA}=100" \
+              --region="asia-northeast1"
+
+  update_deployment_status:
+    needs: [create_deployment, build, deploy, promote_new_revision]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update deployment status (failure)
+        if: "needs.create_deployment.result == 'failure' || needs.build.result == 'failure' || needs.deploy.result == 'failure' || needs.promote_new_revision.result == 'failure'"
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          environment-url: https://pbm-cloud-dev.jiikko.com/
+          state: 'failure'
+          deployment-id: ${{ needs.create_deployment.outputs.deployment_id }}
+      - name: Update deployment status (success)
+        if: "needs.create_deployment.result == 'success' && needs.build.result == 'success' && needs.deploy.result == 'success' && needs.promote_new_revision.result == 'success'"
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          environment-url: https://pbm-cloud-dev.jiikko.com/
+          state: 'success'
+          deployment-id: ${{ needs.create_deployment.outputs.deployment_id }}
