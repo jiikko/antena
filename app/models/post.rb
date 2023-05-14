@@ -2,7 +2,6 @@ require 'fileutils'
 
 class Post < ApplicationRecord
 
-  EXECUTING_FLAG_PATH = '/tmp/.antena_post_destroying'
   ACCESSABLE_COLUMNS = %i(name site_id created_at url id)
 
   belongs_to :site, counter_cache: :posts_count
@@ -27,20 +26,6 @@ class Post < ApplicationRecord
   # validates :url, presence: true, :uniqueness => { :scope => [:url, :name] }
 
   before_save :remove_kanren_text_in_content
-
-  def self.destroy_old_posts
-    loop do
-      if File.exists?(PostWordTagger::EXECUTING_FLAG_PATH)
-        sleep(40)
-      else
-        break
-      end
-    end
-
-    ::FileUtils.touch(EXECUTING_FLAG_PATH)
-    where('created_at < ?', Date.today.months_ago(3)).find_each(&:destroy)
-    ::FileUtils.rm(EXECUTING_FLAG_PATH)
-  end
 
   # moduleにするべきだな
   # modeule rss_readable
