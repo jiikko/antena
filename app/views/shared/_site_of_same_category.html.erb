@@ -1,0 +1,12 @@
+<% if params[:action] == 'show' && (params[:controller] == 'sites' || params[:controller] == 'posts') %>
+  <h3 class="top-buffer">同一カテゴリのサイト</h3>
+  <ul class="list_in_side">
+    <% sites = @post ? @post.site.category.sites : @site.category.sites %>
+    <% sites.each do |site| %>
+      <% site_name = site.name || '登録名なし' %>
+      <li>
+        <%= link_to "#{site_name}(#{site.posts_count})", site %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
