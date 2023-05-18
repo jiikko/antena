@@ -105,9 +105,14 @@ jobs:
             --set-env-vars="SECRET_KEY_BASE='1'"
 
           # scheduler
-          gcloud beta scheduler jobs update http prpr-antend-estroy-for-old-posts-scheduler-trigger --schedule "*/10 8-23 * * *" --time-zone "Asia/Tokyo" --location us-central1
-          gcloud beta scheduler jobs update http web-scheduler-trigger --schedule "0 0 * * *"       --time-zone "Asia/Tokyo" --location us-central1
-
+          gcloud beta scheduler jobs update http prpr-antend-estroy-for-old-posts-scheduler-trigger \
+            --schedule "*/10 8-23 * * *" \
+            --time-zone "Asia/Tokyo" \
+            --location us-central1
+          gcloud beta scheduler jobs update http web-scheduler-trigger \
+            --schedule "0 0 * * *" \
+            --time-zone "Asia/Tokyo" \
+            --location us-central1
 
   promote_new_revision:
     needs: [build, deploy]
