@@ -168,4 +168,15 @@ class Post < ApplicationRecord
     end
     save!(validate: false)
   end
+
+  def only_image_tags_by_content
+    if content_without_script_tag
+      Nokogiri::HTML(content).css("img").map { |x|
+        unless x.to_html.include?('width="1"')
+          x.to_html
+        end
+      }.join.html_safe
+    end
+  end
+
 end

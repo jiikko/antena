@@ -214,7 +214,7 @@ div.sitetitle {
     display: table;
     width: 1050px;
 }
-.container .left_columm {
+.container .left_colum {
     display: table-cell;
     width: 600px;
 }
@@ -226,3 +226,54 @@ div.sitetitle {
     width: 310px;
 }
 
+
+
+
+.tag_post {
+  background-color: #F5DEB3;
+  border: 1px solid #FA8072;
+  display: table;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.tag_post_image {
+  display: table-cell;
+  width: 10px;
+  background-color: #FF7F50;
+}
+
+.tag_post_body {
+  display: table-cell;
+  width: 700px;
+  padding-left: 10px;
+}
+
+.tag_post_body_preview {
+  margin-left: 10px;
+}
+
+.normal_tag {
+  @extend .kadomaru;
+  margin-left: 10px;
+  background-color: #FA8072;
+  border: 1px solid #FA8072;
+  color: white;
+  padding: 2px;
+  text-decoration: none;
+}
+
+.normal_tag:hover {
+  text-decoration: underline;
+}
+
+.category_link {
+}
+
+.scraped-images {
+  margin-bottom: 20px;
+}
+
+.scraped-images img {
+  height: 90px;
+}

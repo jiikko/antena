@@ -1,0 +1,7 @@
+<% if params[:page].to_i == 1 %>
+  <link href="<%= request.path_info %>" rel="canonical">
+<% end %>
+
+<% if params[:page].to_i >= 2 %>
+  <meta content="noindex,follow" name="robots">
+<% end %>

@@ -1,0 +1,53 @@
+<% content_for(:page_title, "#{@site.name}の記事一覧 | ぺろぺろあんてな") %>
+<% @keywords = "まとめサイト, 2ch, あんてなサイト, #{@site.name}" %>
+<% @description = "#{@site.name}のまとめサイトの記事を紹介します。" %>
+
+<% content_for(:meta_tag) do %>
+  <%= render 'shared/noindex_tag' %>
+<% end %>
+<!-- TODO: ぱんくず -->
+
+<div id='base'>
+  <br>
+  <br>
+  <%= render 'shared/header' %>
+
+  <div class="container">
+    <div class="left_column">
+      <h1>
+        <%= link_to @site.name, @site.url, target: :_blank %>
+        の記事
+      </h1>
+      <%= paginate(@posts) %>
+      <ul>
+        <%= render partial: 'post', collection: @posts, as: :post %>
+        <%= paginate(@posts) %>
+      </ul>
+    </div>
+
+    <div class="right_column">
+      <%= render 'shared/right_column' %>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    var tagPosts = document.querySelectorAll(".tag_post");
+    tagPosts.forEach(function(tagPost) {
+      var postContent = tagPost.querySelector("[data=post-content]").innerHTML;
+      var images = Array.from(new DOMParser().parseFromString(postContent, "text/html").querySelectorAll("img"));
+      var scrapedImages = tagPost.querySelector(".scraped-images");
+      images.forEach(function(img) {
+        var imgSrc = img.getAttribute("src");
+        var link = document.createElement("a");
+        link.setAttribute("href", imgSrc);
+        link.setAttribute("target", "_blank");
+        var image = document.createElement("img");
+        image.setAttribute("src", imgSrc);
+        link.appendChild(image);
+        scrapedImages.appendChild(link);
+      });
+    });
+  });
+</script>
