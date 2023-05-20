@@ -100,7 +100,7 @@ jobs:
           gcloud beta run jobs update antena-delete-old-posts \
             --region=us-central1 \
             --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
-            --command "bin/rails,r,Post.destroy_for_old_posts" \
+            --command "bin/rails,r,Site.destroy_old_posts" \
             --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
             --set-env-vars="SECRET_KEY_BASE='1'"
 

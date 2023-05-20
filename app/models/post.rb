@@ -27,21 +27,6 @@ class Post < ApplicationRecord
 
   before_save :remove_kanren_text_in_content
 
-  # NOTE 表示されることのない記事の削除を行う。3時くらいのcronで実行したい
-  def self.destroy_for_old_posts
-    posts = []
-
-    Site.all.each do |site|
-      if site.posts.size > 50
-        posts << site.posts.where("created_at <= ?", DateTime.now - 5.day)
-      end
-    end
-
-    count = posts.size
-    posts.flatten.each{ |post| post.destroy }
-    p "[notice] #{count}記事削除しました。"
-  end
-
   # http://ngyuki.hatenablog.com/entry/20120724/p1
   def self.posts_by(sites: )
     sqls =

@@ -80,6 +80,20 @@ class Site < ApplicationRecord
     counter
   end
 
+  # NOTE 表示されることのない記事の削除を行う。3時くらいのcronで実行したい
+  def self.destroy_old_posts
+    posts = []
+
+    Site.all.each do |site|
+      if site.posts.size > 50
+        posts << site.posts.where("created_at <= ?", DateTime.now - 5.day)
+      end
+    end
+
+    count = posts.size
+    posts.flatten.each{ |post| post.destroy }
+  end
+
   # SiteURLからRSS_URLを取得してくる
   def site_to_rss_url
     return if self.rss_url.present?
