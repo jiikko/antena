@@ -91,25 +91,25 @@ jobs:
             --allow-unauthenticated
 
           # jobs
-          gcloud beta run jobs update web \
+          gcloud beta run jobs update anten-fetch-posts \
+            --region=us-central1 \
+            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
+            --command "bin/rails,r,Post.all_rss_to_post" \
+            --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
+            --set-env-vars="SECRET_KEY_BASE=1"
+          gcloud beta run jobs update antena-delete-old-posts \
             --region=us-central1 \
             --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
             --command "bin/rails,r,Post.destroy_for_old_posts" \
             --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
             --set-env-vars="SECRET_KEY_BASE='1'"
-          gcloud beta run jobs update prpr-antend-estroy-for-old-posts \
-            --region=us-central1 \
-            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
-            --command "bin/rails,r,Post.all_rss_to_post" \
-            --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
-            --set-env-vars="SECRET_KEY_BASE='1'"
 
           # scheduler
-          gcloud beta scheduler jobs update http prpr-antend-estroy-for-old-posts-scheduler-trigger \
+          gcloud beta scheduler jobs update http anten-fetch-posts-scheduler-trigger \
             --schedule "*/10 8-23 * * *" \
             --time-zone "Asia/Tokyo" \
             --location us-central1
-          gcloud beta scheduler jobs update http web-scheduler-trigger \
+          gcloud beta scheduler jobs update http antena-delete-old-posts-scheduler-trigger \
             --schedule "0 0 * * *" \
             --time-zone "Asia/Tokyo" \
             --location us-central1
