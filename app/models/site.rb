@@ -16,6 +16,70 @@ class Site < ApplicationRecord
   validates :url, presence: true
   validates :category_id, presence: true
 
+  # @return [void]
+  def self.fetch
+    Site.enable.find_each do |site|
+      begin
+        if(plus_number = site.fetch)
+          Rails.logger.info "#{site.name} sussecc!!(+#{plus_number})"
+        else
+          # エラーの原因は、RSS_URLが誤っているからかも
+          Rails.logger.error "[error] #{site.name}"
+        end
+      rescue => e
+        Rails.logger.error e
+      end
+    end
+  end
+
+  # @return [Integer]
+  def fetch
+    return nil if rss_url.nil?
+
+    # フィード取得
+    begin
+      response = Net::HTTP.get_response(URI(rss_url))
+      feed = Feedjira.parse(response.body)
+    rescue Faraday::TimeoutError
+      Rails.logger.info "[Faraday::TimeoutError] #{inspect}"
+      return
+    rescue Timeout::Error
+      Rails.logger.info "[Timeout::Error] #{inspect}"
+      return
+    rescue Feedjira::FetchFailure
+      Rails.logger.info "[Feedjira::FetchFailure] #{inspect}"
+      return
+    rescue Faraday::ConnectionFailed
+      Rails.logger.error "#{rss_url}でエラー(Faraday::ConnectionFailed)が起きました"
+      return
+    end
+
+    return if feed.is_a?(Integer)
+    inserted_posts = Post.where("name in (?) or url in (?)", feed.entries.map(&:title), feed.entries.map(&:url))
+
+    counter = 0
+    feed.entries.each do |item|
+      return if -> { DateTime.now }.call < item.published # 公開日が未来の場合は登録しない
+      # URL かつ 記事名が既存になければ
+      # FIXME: hashを使って捜査をする
+      if !inserted_posts.detect { |x| x.url == item.url } && !inserted_posts.detect { |x| x.name == item.title }
+        post = posts.build { |post|
+          post.name = item.title
+          post.url = item.url
+          post.summary = item.summary
+          post.content = item.content
+          post.content = post.content_without_script_tag
+        }
+        if post.save
+          counter += 1
+        else
+          Rails.logger.info "#{name}を読めませんでした"
+        end
+      end
+    end
+    counter
+  end
+
   # SiteURLからRSS_URLを取得してくる
   def site_to_rss_url
     return if self.rss_url.present?

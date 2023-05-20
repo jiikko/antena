@@ -94,7 +94,7 @@ jobs:
           gcloud beta run jobs update anten-fetch-posts \
             --region=us-central1 \
             --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
-            --command "bin/rails,r,Post.all_rss_to_post" \
+            --command "bin/rails,r,Site.fetch" \
             --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
             --set-env-vars="SECRET_KEY_BASE=1"
           gcloud beta run jobs update antena-delete-old-posts \
