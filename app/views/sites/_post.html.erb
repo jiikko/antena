@@ -17,6 +17,6 @@
       <%= link_to post.site.name, post.site %>
     </div>
     <div class="tag_post_tags"></div>
-    <div class="text-right"><%= post.created_at.to_s(:published_on) %></div>
+    <div class="text-right"><%= post.created_at.to_fs(:published_on) %></div>
   </div>
 </li>

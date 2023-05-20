@@ -18,10 +18,10 @@
         <%= link_to @site.name, @site.url, target: :_blank %>
         の記事
       </h1>
-      <%= paginate(@posts) %>
+      <%= paginate(@posts, params: { controller: 'sites', action: 'show', id: @site.id, page: @page }) %>
       <ul>
-        <%= render partial: 'post', collection: @posts, as: :post %>
-        <%= paginate(@posts) %>
+        <%= render partial: 'sites/post', collection: @posts, as: :post %>
+        <%= paginate(@posts, params: { controller: 'sites', action: 'show', id: @site.id, page: @page }) %>
       </ul>
     </div>
 

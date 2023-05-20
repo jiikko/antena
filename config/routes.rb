@@ -3,7 +3,10 @@ Rails.application.routes.draw do
 
   get '/toggle_pc_view' => 'home#toggle_pc_view', as: :toggle_pc_view
 
-  resources :sites, only: :show
+  # pageをpathパラメータにしている
+  get 'sites/:id' => 'sites#show', as: :site
+  get 'sites/:id/:page' => 'sites#show'
+
   resources :opinions, only: %w[create]
   resources :posts, only: %i(index show) do
     collection do
