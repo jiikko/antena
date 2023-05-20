@@ -3,7 +3,7 @@ class SitesController < ApplicationController
     def initialize(site_id: , page: )
       @page = page
       @site = Site.find(site_id)
-      @posts = @site.posts.includes(:site).page(page).per(10)
+      @posts = @site.posts.includes(:site).page(page).per(20)
     end
 
     # @return [String] html
