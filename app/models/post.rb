@@ -6,10 +6,6 @@ class Post < ApplicationRecord
 
   belongs_to :site, counter_cache: :posts_count
 
-  has_many :word_taggings, dependent: :destroy
-  has_many :word_tags, through: :word_taggings
-  # has_many :posted_tweets, dependent: :destroy
-
   scope :saikin_post, -> { where("posts.created_at >= ?", DateTime.now - 2.day).order("id DESC") }
   scope :enable_site, -> { joins(:site).where("sites.enable = true") }
   # scope :without, ->(post){ where.not(id: post) }
