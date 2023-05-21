@@ -14,7 +14,7 @@ class S3Uploader
 
   def initialize
     @s3 = Aws::S3::Resource.new(region:'ap-northeast-1')
-    @bucket_name = 'prpr-antena'
+    @bucket_name = Rails.configuration.x.s3_bucket_name
   end
 
   def execute
