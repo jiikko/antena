@@ -2,7 +2,7 @@
   <ul class="list_in_side little-font">
     <% Post.includes(site: :category).order("created_at DESC").limit(15).each do |post| %>
       <li>
-        <%= link_to post.name_with_short, post, data: { ob: true, side_link: true } %>
+        <%= link_to post.name_with_short, post.url, target: :_blank %>
         (
         <%= post.site.category.name %>
         )

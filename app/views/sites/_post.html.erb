@@ -6,7 +6,6 @@
       <div><%= link_to post.name, post.url, target: :_blank %></div>
       <div class="text-right"><%= link_to post.site.name, post.site.url, target: :_blank %></div>
     </p>
-    <p class="tag_post_body_preview mawarikomi"><%= truncate(strip_tags(post.content_without_script_tag), length: 600) %></p>
     <div class="scraped-images"></div>
     <div class="category">
       <span>カテゴリ：</span>
