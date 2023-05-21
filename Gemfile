@@ -4,12 +4,10 @@ git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 ruby "3.2.0"
 
 gem "rails"
-gem "sprockets-rails"
+gem "propshaft"
 gem "mysql2"
 gem "puma", "~> 5.0"
 gem "importmap-rails"
-gem "turbo-rails"
-gem "stimulus-rails"
 gem "bootsnap", require: false
 gem 'sorcery'
 gem 'active_decorator'
