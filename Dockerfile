@@ -23,6 +23,7 @@ ENV RAILS_ENV production
 COPY . .
 RUN bundle install --jobs 10 --without development,test
 COPY . /app
-RUN SECRET_KEY_BASE=dummy bundle exec rails assets:precompile
+# assetsがないのでskip
+# RUN SECRET_KEY_BASE=dummy bundle exec rails assets:precompile
 
 CMD ["bin/start.sh"]
