@@ -16,7 +16,6 @@ gem 'acts_as_list'
 gem 'meta-tags', :require => 'meta_tags'
 gem 'kaminari'
 gem 'json'
-gem 'kgio'
 gem 'nokogiri'
 gem 'aws-sdk-s3'
 

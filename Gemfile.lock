@@ -142,7 +142,6 @@ GEM
       activerecord
       kaminari-core (= 1.2.2)
     kaminari-core (1.2.2)
-    kgio (2.11.4)
     launchy (2.5.2)
       addressable (~> 2.8)
     loofah (2.21.3)
@@ -261,10 +260,6 @@ GEM
       oauth2 (~> 2.0)
     thor (1.2.2)
     timeout (0.3.2)
-    turbo-rails (1.4.0)
-      actionpack (>= 6.0.0)
-      activejob (>= 6.0.0)
-      railties (>= 6.0.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     version_gem (1.1.2)
@@ -290,7 +285,6 @@ DEPENDENCIES
   importmap-rails
   json
   kaminari
-  kgio
   launchy
   meta-tags
   mysql2
@@ -301,7 +295,6 @@ DEPENDENCIES
   rails
   rspec-rails
   sorcery
-  turbo-rails
 
 RUBY VERSION
    ruby 3.2.0p0
