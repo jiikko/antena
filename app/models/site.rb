@@ -18,7 +18,7 @@ class Site < ApplicationRecord
 
   # @return [void]
   def self.fetch
-    Site.enable.find_each do |site|
+    Site.enabled.find_each do |site|
       begin
         if(plus_number = site.fetch)
           Rails.logger.info "#{site.name} sussecc!!(+#{plus_number})"
