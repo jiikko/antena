@@ -4,7 +4,7 @@ class Site < ApplicationRecord
 
   acts_as_list scope: :category
 
-  scope :enable, -> { where(enable: true) }
+  scope :enabled, -> { where(enable: true) }
 
   has_many :posts, -> {  order("id DESC") }, dependent: :destroy
   has_many :saikin_posts_for_5, -> { order("id DESC").limit(5) }, class_name: 'Post'

@@ -1,9 +1,6 @@
 require 'fileutils'
 
 class Post < ApplicationRecord
-
-  ACCESSABLE_COLUMNS = %i(name site_id created_at url id)
-
   belongs_to :site, counter_cache: :posts_count
 
   scope :saikin_post, -> { where("posts.created_at >= ?", DateTime.now - 2.day).order("id DESC") }
@@ -25,6 +22,8 @@ class Post < ApplicationRecord
 
   # http://ngyuki.hatenablog.com/entry/20120724/p1
   def self.posts_by(sites: )
+    return [] if sites.empty?
+
     sqls =
       sites.map { |site|
         Post.where("site_id = #{site.id}").

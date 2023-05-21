@@ -2,20 +2,18 @@
   <div id="headline_block">
     <table id="headline_body">
       <tbody>
-        <% cache [:posts, @category_name], expires_in: 15.minute do %>
-          <% @posts.each do |post| %>
-            <%= date_label(post) %>
-            <tr>
-              <td width="50px"><%= post.created_at.to_fs(:time) %></td>
-              <td class="mawarikomi" width="500px">
-                <%= link_to post.url, target: "_blank", data: { ob: true } do %>
-                  <%= post.name %>
-                <% end %>
-                <%= link_to '[preview]', post, class: 'preview_link', data: { preview: true } %>
-              </td>
-              <td><%= link_to post.site.name, post.site.url, target: "_blank" %></td>
-            </tr>
-          <% end %>
+        <% @posts.each do |post| %>
+          <%= date_label(post) %>
+          <tr>
+            <td width="50px"><%= post.created_at.to_fs(:time) %></td>
+            <td class="mawarikomi" width="500px">
+              <%= link_to post.url, target: "_blank", data: { ob: true } do %>
+                <%= post.name %>
+              <% end %>
+              <%= link_to '[preview]', post, class: 'preview_link', data: { preview: true } %>
+            </td>
+            <td><%= link_to post.site.name, post.site.url, target: "_blank" %></td>
+          </tr>
         <% end %>
       </tbody>
     </table>
