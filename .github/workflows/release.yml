@@ -96,6 +96,8 @@ jobs:
             --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
             --command "bin/rails,r,Cron::FetchAndUpload.new.execute" \
             --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
+            --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
+            --set-env-vars="AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
             --set-env-vars="SECRET_KEY_BASE=1"
           gcloud beta run jobs update antena-delete-old-posts \
             --region=us-central1 \
