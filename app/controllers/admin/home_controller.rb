@@ -1,4 +1,4 @@
-class Admin::HomeController < Admin::BaseController
+class Admin::HomeController < Admin::Base
   def index
     cookies.permanent[:admin] = true # analyticsの解析が入らないようにするやつ
   end

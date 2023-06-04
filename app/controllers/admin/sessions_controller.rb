@@ -1,5 +1,5 @@
-class Admin::SessionsController < Admin::BaseController
-  skip_before_filter :login_required, only: %[new, create]
+class Admin::SessionsController < Admin::Base
+  skip_before_action :login_required, only: %[new, create]
   before_action :login_required, only: %w[destroy]
 
   def new
