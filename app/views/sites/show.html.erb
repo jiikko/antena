@@ -5,15 +5,16 @@
 <% content_for(:meta_tag) do %>
   <%= render 'shared/noindex_tag' %>
 <% end %>
-<!-- TODO: ぱんくず -->
 
 <div id='base'>
-  <br>
-  <br>
   <%= render 'shared/header' %>
 
   <div class="container">
     <div class="left_column">
+      <p style='margin-bottom: 10px'>
+        <%= link_to "カテゴリ:#{@site.category.name}", category_path(@site.category.slug) %> -> <%= @site.name %>の記事一覧
+      </p>
+
       <h1>
         <%= link_to @site.name, @site.url, target: :_blank %>
         の記事
