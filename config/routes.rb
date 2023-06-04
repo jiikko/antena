@@ -7,7 +7,6 @@ Rails.application.routes.draw do
   get 'sites/:id' => 'sites#show', as: :site
   get 'sites/:id/:page' => 'sites#show'
 
-  resources :opinions, only: %w[create]
   resources :posts, only: %i(index show) do
     collection do
       resources :tags, only: [:index, :show], controller: 'posts/tags'
@@ -21,7 +20,6 @@ Rails.application.routes.draw do
     get 'login'  => 'sessions#new',  as: :login
     get 'logout' => 'sessions#destroy', as: :logout
 
-    resources :opinions, only: %i(index destroy)
     resources :categories
     resources :sites do
       member do
