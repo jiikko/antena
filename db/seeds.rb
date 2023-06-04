@@ -14,4 +14,5 @@ end
 Category.find_or_create_by!(name: "ニュー速", slug: "news")
 Category.find_or_create_by!(name: "アニメ・ゲーム", slug: "anime")
 Category.find_or_create_by!(name: "芸能・スポーツ", slug: "talent")
+Category.find_or_create_by!(name: "奥様", slug: "mom")
 Category.find_or_create_by!(name: "アダルト", slug: "adult")

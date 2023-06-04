@@ -6,12 +6,29 @@
           <%= date_label(post) %>
           <tr>
             <td width="50px"><%= post.created_at.to_fs(:time) %></td>
-            <td class="mawarikomi" width="500px">
-              <%= link_to post.url, target: "_blank", data: { ob: true } do %>
-                <%= post.name %>
-              <% end %>
+            <td class="mawarikomi">
+              <div class="visible_pc">
+                <%= link_to post.url, target: "_blank", data: { ob: true } do %>
+                  <%= post.name %>
+                <% end %>
+              </div>
+
+              <div class="visible_sp">
+                <%= link_to post.url, target: "_blank", data: { ob: true } do %>
+                  <p style='height: 70px;'>
+                    <%= post.name.truncate(40) %>
+                    (<%= link_to post.site.name, post.site.url, target: "_blank" %>)
+                  </p>
+                <% end %>
+              </div>
             </td>
-            <td><%= link_to post.site.name, post.site.url, target: "_blank" %></td>
+            <td>
+              <div class="visible_pc">
+                <%= link_to post.site.name, post.site.url, target: "_blank" %>
+              </div>
+
+              <div class="visible_sp"></div>
+            </td>
           </tr>
         <% end %>
       </tbody>
