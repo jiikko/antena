@@ -10,7 +10,7 @@ class SitesController < ApplicationController
     def render
       ApplicationController.renderer.render_to_string(
         template: "sites/show",
-        assigns: { site: @site, posts: @posts, page: @page },
+        assigns: { category: @site.category, site: @site, posts: @posts, page: @page },
         locals: { params: { page: @page } },
         format: "html",
       )
