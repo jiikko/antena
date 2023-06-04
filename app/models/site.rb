@@ -59,7 +59,11 @@ class Site < ApplicationRecord
 
     counter = 0
     feed.entries.each do |item|
-      return if -> { DateTime.now }.call < item.published # 公開日が未来の場合は登録しない
+       if DateTime.now < item.published
+        Rails.logger.warn "#{item}は公開日が未来の場合は登録しません"
+        next
+      end
+
       # URL かつ 記事名が既存になければ
       # FIXME: hashを使って捜査をする
       if !inserted_posts.detect { |x| x.url == item.url } && !inserted_posts.detect { |x| x.name == item.title }
