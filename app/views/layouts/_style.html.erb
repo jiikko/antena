@@ -13,7 +13,6 @@ blockquote, dd, div, dl, dt, fieldset, form, h1, h2, h3, h4, h5, h6, input, li, 
   font-size: 16px;
 }
 #menu {
-  width: 740px;
   height: 40px;
   padding: 0;
   margin: 0;
@@ -40,38 +39,6 @@ blockquote, dd, div, dl, dt, fieldset, form, h1, h2, h3, h4, h5, h6, input, li, 
 #menu li a.active {
   background:red;
 }
-#nav {
-  margin: 0;
-  height: 38px;
-  display: block;
-  margin-bottom: 8px;
-  margin-left: auto;
-  margin-right: auto;
-  padding: 0;
-  position: relative;
-  text-align: left;
-  width: 1000px;
-}
-#nav li {
-  text-align: center;
-  float: right;
-  width: auto;
-  color: #fff;
-  font-size: 12px;
-  font-weight: bold;
-  display: block;
-  margin-right: 100px;
-}
-#nav li a {
-  width: auto;
-  color: #fff;
-  font-size: 12px;
-  font-weight: bold;
-  display: block;
-  padding: 8px 0;
-  text-decoration: none;
-  background: #E8AAAC;
-}
 .navbar {
   background-color: #E8AAAC;
   height: 37px;
@@ -84,11 +51,55 @@ blockquote, dd, div, dl, dt, fieldset, form, h1, h2, h3, h4, h5, h6, input, li, 
   .right_column, #main {
     display: none !important;
   }
+  #menu {
+    width: 400px;
+  }
+  #nav {
+    margin: 0;
+    height: 38px;
+    display: block;
+    margin-bottom: 8px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-top: 8px;
+    width: 400px;
+  }
 }
 
 @media all and (min-width: 929px) {
   .visible_pc { display: block !important; }
-
+  #menu {
+    width: 740px;
+  }
+  #nav {
+    margin: 0;
+    height: 38px;
+    display: block;
+    margin-bottom: 8px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 1000px;
+  }
+  #nav li {
+    text-align: center;
+    float: right;
+    width: auto;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    display: block;
+    margin-right: 100px;
+  }
+  #nav li a {
+    width: auto;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    display: block;
+    padding: 8px 0;
+    text-decoration: none;
+    background: #E8AAAC;
+  }
   .center {
     text-align: center;
   }
