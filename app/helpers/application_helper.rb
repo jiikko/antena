@@ -12,11 +12,10 @@ module ApplicationHelper
     end
   end
 
-  def category_active_css(category)
-    return("active") if(category.slug == params[:id])
-
-    if request.url == root_url
-      return("active") if category.slug == 'vip'
+  # @return [String, NilClass]
+  def category_active_css(rendering_category: , current_category: )
+    if rendering_category.slug == current_category.slug
+      return 'active'
     end
   end
 end

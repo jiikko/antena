@@ -1,5 +1,5 @@
 <ul id='menu'>
   <% Category.all.each do |category| %>
-    <li><%= link_to category.name, category_path(category.slug), class: category_active_css(category) %></li>
+    <li><%= link_to category.name, category_path(category.slug), class: category_active_css(rendering_category: category, current_category: @category) %></li>
   <% end %>
 </ul>
