@@ -112,7 +112,7 @@ jobs:
 
           # scheduler
           gcloud beta scheduler jobs update http anten-fetch-posts-scheduler-trigger \
-            --schedule "*/10 8-23 * * *" \
+            --schedule "*/30 8-23 * * *" \
             --time-zone "Asia/Tokyo" \
             --location us-central1
           gcloud beta scheduler jobs update http antena-delete-old-posts-scheduler-trigger \
