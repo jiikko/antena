@@ -95,7 +95,7 @@ class Site < ApplicationRecord
     end
 
     count = posts.size
-    posts.flatten.each{ |post| post.destroy }
+    posts.flatten.each { |post| post.destroy }
   end
 
   # SiteURLからRSS_URLを取得してくる
