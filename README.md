@@ -1,9 +1,24 @@
 # https://prpr-antena.com/
 
-* How to run the test suite
+- 運用コストが安い自分専用のアンテナサイトです
 
-## Deployment instructions
-* masterブランチへのコミットでイメージをビルドしてECRにpushする
-* AppRunnerへデプロイする
-* SchedulerからAppRunnerの出力をS3へアップロードする
-* https://prpr-antena.com にアクセスると CloudFront/S3がHTMLを返す
+## 使っている技術
+
+- GCP CloudRun
+- Rails
+- AWS S3
+
+## アーキテクチャ
+
+- CloudRun => S3 <= ブラウザ
+
+## バッチ処理
+
+- 登録している RSS フィードを取得し DB に保存する. 各ページのHTML を生成して S3 にアップロードする
+  - 15 分おきに発動
+- 古い RSS フィードを削除する
+  - 毎晩 0 時に発動
+
+## 本環境へのデプロイ
+
+- master ブランチへのコミットすると、イメージをビルドして、CloudRun のリビジョンを作成する
