@@ -8,7 +8,7 @@ fi
 
 bundle check || bundle install
 
-bin/rails db:create db:migrate db:seed &
+bin/rails db:create db:migrate db:seed
 
 rm -f tmp/pids/server.pid
 
