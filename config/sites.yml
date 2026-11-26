@@ -24,8 +24,8 @@ categories:
 sites:
 - id: 1
   name: "【2ch】ニュー速クオリティ"
-  url: http://news4vip.livedoor.biz/
-  rss_url: http://news4vip.livedoor.biz/index.rdf
+  url: https://news4vip.livedoor.biz/
+  rss_url: https://news4vip.livedoor.biz/index.rdf
   category: vip
   position: 1
   enable: true
@@ -38,8 +38,8 @@ sites:
   enable: true
 - id: 3
   name: VIPPERな俺
-  url: http://blog.livedoor.jp/news23vip/
-  rss_url: http://blog.livedoor.jp/news23vip/index.rdf
+  url: https://news23vip.livedoor.blog/
+  rss_url: https://news23vip.livedoor.blog/index.rdf
   category: vip
   position: 3
   enable: true
@@ -53,7 +53,7 @@ sites:
 - id: 24
   name: ライフハックちゃんねる弐式
   url: http://lifehack2ch.livedoor.biz/
-  rss_url: http://lifehack2ch.livedoor.biz/index.rdf
+  rss_url: https://lifehack2ch.livedoor.biz/index.rdf
   category: news
   position: 1
   enable: true
@@ -77,7 +77,7 @@ sites:
   rss_url: http://blog.livedoor.jp/rbkyn844/index.rdf
   category: news
   position: 4
-  enable: true
+  enable: false  # RSS が 404 (2026-11-26 確認)
 - id: 37
   name: ２ろぐちゃんねる-5chまとめブログ
   url: https://2logch.com/
@@ -109,21 +109,21 @@ sites:
 - id: 97
   name: ぷるるんお宝画像庫
   url: http://blog.livedoor.jp/pururungazou/
-  rss_url: http://blog.livedoor.jp/pururungazou/index.rdf
+  rss_url: https://pururungazouko.com/index.rdf
   category: adult
   position: 1
   enable: true
 - id: 98
   name: エロログZ
   url: https://erologz.com/
-  rss_url: https://erologz.com/feed
+  rss_url: https://erologz.com/feed/
   category: adult
   position: 2
   enable: true
 - id: 99
   name: これはエロい速報
   url: http://korewaeroi.com/
-  rss_url: http://korewaeroi.com/feed
+  rss_url: https://korewaeroi.com/feed
   category: adult
   position: 3
   enable: true

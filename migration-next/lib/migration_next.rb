@@ -519,7 +519,7 @@ module MigrationNext
       canonical = canonical ? %(<link href="#{h(canonical)}" rel="canonical">) : ""
       <<~HTML
         <!DOCTYPE html><html><head><title>#{title}</title><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8">#{robots}#{canonical}#{@style}</head>
-        <body><div class="navbar"><div id="nav"><div id="nav_left">#{link("ぺろぺろあんてな", public_path("index.html"), css_class: "site_name")}</div></div><br class="clearfix"></div>#{body}</body></html>
+        <body><div class="navbar"><div id="nav"><div id="nav_left">#{link("ぺろぺろあんてな", "/index.html", css_class: "site_name")}</div></div><br class="clearfix"></div>#{body}</body></html>
       HTML
     end
 
@@ -540,7 +540,9 @@ module MigrationNext
       "#{base}#{path}"
     end
 
-    def category_path(slug) = public_path(slug.to_s.empty? ? "index.html" : slug)
+    # Unprefixed: link() adds the preview prefix. Prefixing here as well produced
+    # /migration-preview/migration-preview/... links in preview pages.
+    def category_path(slug) = "/#{slug.to_s.empty? ? "index.html" : slug}"
     def h(value) = CGI.escapeHTML(value.to_s)
     def truncate(value, length) = value.to_s.length > length ? "#{value.to_s[0, length - 1]}…" : value.to_s
     def tokyo_time(time) = time.getlocal("+09:00")
