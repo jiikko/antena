@@ -1,0 +1,129 @@
+# prpr-antena のカテゴリ／サイト定義（このファイルが正本）
+#
+# ルール:
+# - sites の id は固定。既存ページの URL (sites/:id) と対応しているので変更・再利用禁止。
+#   新規サイトは「現在の最大 id + 1」を採番する。
+# - サイトをやめるときは行を消さず enable: false にする。
+# - category は slug で参照する。categories の slug 変更も既存URLが壊れるので禁止。
+# - 並び順は position の昇順。
+# - このファイルを変更して master にマージすると、次回のバッチ実行から反映される。
+---
+categories:
+- id: 1
+  name: ＶＩＰ
+  slug: vip
+- id: 2
+  name: ニュー速
+  slug: news
+- id: 5
+  name: 奥様
+  slug: mom
+- id: 6
+  name: アダルト
+  slug: adult
+sites:
+- id: 1
+  name: "【2ch】ニュー速クオリティ"
+  url: http://news4vip.livedoor.biz/
+  rss_url: http://news4vip.livedoor.biz/index.rdf
+  category: vip
+  position: 1
+  enable: true
+- id: 2
+  name: アルファルファモザイク
+  url: https://alfalfalfa.com/
+  rss_url: https://alfalfalfa.com/index.rdf
+  category: vip
+  position: 2
+  enable: true
+- id: 3
+  name: VIPPERな俺
+  url: http://blog.livedoor.jp/news23vip/
+  rss_url: http://blog.livedoor.jp/news23vip/index.rdf
+  category: vip
+  position: 3
+  enable: true
+- id: 22
+  name: まとめCUP
+  url: http://matomecup.com/
+  rss_url: http://matomecup.com/?xml
+  category: vip
+  position: 4
+  enable: true
+- id: 24
+  name: ライフハックちゃんねる弐式
+  url: http://lifehack2ch.livedoor.biz/
+  rss_url: http://lifehack2ch.livedoor.biz/index.rdf
+  category: news
+  position: 1
+  enable: true
+- id: 28
+  name: 笑　韓　ブログ
+  url: https://www.wara2ch.com/
+  rss_url: https://www.wara2ch.com/index.rdf
+  category: news
+  position: 2
+  enable: true
+- id: 30
+  name: 大艦巨砲主義！
+  url: https://taikankyohou.com/
+  rss_url: https://taikankyohou.com/index.rdf
+  category: news
+  position: 3
+  enable: true
+- id: 33
+  name: 暇つぶしニュース
+  url: http://blog.livedoor.jp/rbkyn844/
+  rss_url: http://blog.livedoor.jp/rbkyn844/index.rdf
+  category: news
+  position: 4
+  enable: true
+- id: 37
+  name: ２ろぐちゃんねる-5chまとめブログ
+  url: https://2logch.com/
+  rss_url: https://2logch.com/feed
+  category: news
+  position: 5
+  enable: true
+- id: 96
+  name: ふぇー速
+  url: http://fesoku.net/
+  rss_url: http://fesoku.net/index.rdf
+  category: news
+  position: 6
+  enable: true
+- id: 94
+  name: ２ろぐちゃんねる-5chまとめブログ
+  url: https://2logch.com/
+  rss_url: https://2logch.com/comments/feed
+  category: mom
+  position: 1
+  enable: true
+- id: 95
+  name: 育児板拾い読み
+  url: https://ikuzi2p.livedoor.blog/
+  rss_url: https://ikuzi2p.livedoor.blog/index.rdf
+  category: mom
+  position: 2
+  enable: true
+- id: 97
+  name: ぷるるんお宝画像庫
+  url: http://blog.livedoor.jp/pururungazou/
+  rss_url: http://blog.livedoor.jp/pururungazou/index.rdf
+  category: adult
+  position: 1
+  enable: true
+- id: 98
+  name: エロログZ
+  url: https://erologz.com/
+  rss_url: https://erologz.com/feed
+  category: adult
+  position: 2
+  enable: true
+- id: 99
+  name: これはエロい速報
+  url: http://korewaeroi.com/
+  rss_url: http://korewaeroi.com/feed
+  category: adult
+  position: 3
+  enable: true

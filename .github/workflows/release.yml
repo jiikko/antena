@@ -6,6 +6,14 @@ on:
       - master
   workflow_dispatch:
 
+# Runs go one at a time so their scheduler pauses and job deploys do not
+# interleave. It does not order runs against a variable change: a run created
+# before MIGRATION_NEXT_MODE is flipped still uses the old value. A pending
+# run is replaced by a newer one (only one pending run per group).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   PROJECT_ID: jiikko
   REGISTRY_HOST: asia-northeast1-docker.pkg.dev
@@ -79,6 +87,7 @@ jobs:
           SECRET_KEY_BASE: ${{ secrets.SECRET_KEY_BASE }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          MIGRATION_NEXT_MODE: ${{ vars.MIGRATION_NEXT_MODE }}
         run: |
           # web
           gcloud run deploy "$SERVICE_NAME" \
@@ -93,6 +102,8 @@ jobs:
             --allow-unauthenticated
 
           # jobs
+          # The legacy Rails jobs stay deployed after the cutover so that a
+          # rollback only needs their schedulers resumed (see migration-next/flow.md).
           gcloud beta run jobs update anten-fetch-posts \
             --region=us-central1 \
             --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
@@ -111,14 +122,122 @@ jobs:
             --set-env-vars="SECRET_KEY_BASE='1'"
 
           # scheduler
-          gcloud beta scheduler jobs update http anten-fetch-posts-scheduler-trigger \
+          # After the cutover (MIGRATION_NEXT_MODE=public) deploy_migration_next
+          # pauses these triggers; do not touch them here.
+          if [[ "$MIGRATION_NEXT_MODE" != "public" ]]; then
+            gcloud beta scheduler jobs update http anten-fetch-posts-scheduler-trigger \
+              --schedule "*/30 8-23 * * *" \
+              --time-zone "Asia/Tokyo" \
+              --location us-central1
+            gcloud beta scheduler jobs update http antena-delete-old-posts-scheduler-trigger \
+              --schedule "0 0 * * *" \
+              --time-zone "Asia/Tokyo" \
+              --location us-central1
+          fi
+
+  # DB-free batch (migration-next). It runs as a separate Cloud Run job next to
+  # the legacy one and does not block the web deploy. vars.MIGRATION_NEXT_MODE:
+  #   unset / preview: pages go under migration-preview/; the legacy batch keeps the public pages.
+  #   public:          pages go to the public keys and the legacy schedulers are paused.
+  deploy_migration_next:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      NEXT_JOB_NAME: antena-fetch-posts-next
+      NEXT_SCHEDULER_NAME: antena-fetch-posts-next-scheduler-trigger
+      JOB_REGION: us-central1
+    steps:
+      - id: "auth"
+        uses: "google-github-actions/auth@v0"
+        with:
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
+      - name: Resolve migration-next mode
+        env:
+          MIGRATION_NEXT_MODE: ${{ vars.MIGRATION_NEXT_MODE }}
+        run: |
+          case "${MIGRATION_NEXT_MODE:-preview}" in
+            preview)
+              echo "NEXT_PREFIX=migration-preview" >> "$GITHUB_ENV"
+              echo "NEXT_ALLOW_PUBLIC=false" >> "$GITHUB_ENV"
+              ;;
+            public)
+              echo "NEXT_PREFIX=" >> "$GITHUB_ENV"
+              echo "NEXT_ALLOW_PUBLIC=true" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "::error::vars.MIGRATION_NEXT_MODE must be preview or public (got: $MIGRATION_NEXT_MODE)"
+              exit 1
+              ;;
+          esac
+
+      - name: Verify migration state
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          # state/posts.json holds full feed bodies in the public page bucket. The
+          # bucket policy denies the CloudFront OAI on state/* and locks/*; make
+          # sure the site really refuses state/ before the job writes there.
+          # Probe an object that is known to exist: a missing key is 403 even
+          # without the Deny (the OAI has no ListBucket), which would prove nothing.
+          echo "Deny probe for the HideMigrationState bucket policy" |
+            aws s3 cp - s3://prpr-antena/state/deny-probe.txt --region ap-northeast-1 --content-type text/plain
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://prpr-antena.com/state/deny-probe.txt?v=${GITHUB_SHA}")
+          if [[ "$code" != "403" ]]; then
+            echo "::error::https://prpr-antena.com/state/deny-probe.txt returned $code (expected 403); restore the HideMigrationState Deny in the prpr-antena bucket policy."
+            exit 1
+          fi
+
+      - name: Pause legacy schedulers before publishing
+        if: env.NEXT_ALLOW_PUBLIC == 'true'
+        run: |
+          # Both batches writing the public keys would interleave two post sets.
+          for trigger in anten-fetch-posts-scheduler-trigger antena-delete-old-posts-scheduler-trigger; do
+            state=$(gcloud scheduler jobs describe "$trigger" --location "$JOB_REGION" --format='value(state)')
+            if [[ "$state" != "PAUSED" ]]; then
+              gcloud scheduler jobs pause "$trigger" --location "$JOB_REGION"
+            fi
+          done
+
+      - name: Deploy DB-free fetch job
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          # --set-env-vars replaces the whole job environment; DATABASE_URL is never set.
+          # --task-timeout must stay below MigrationNext::S3RunLock::DEFAULT_STALE_AFTER_SECONDS (1h)
+          # so a running task is killed before another execution may take its lock over.
+          gcloud run jobs deploy "$NEXT_JOB_NAME" \
+            --project="$PROJECT_ID" \
+            --region="$JOB_REGION" \
+            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
+            --command="bundle" \
+            --args="exec,ruby,migration-next/bin/run.rb" \
+            --task-timeout=1800s \
+            --max-retries=0 \
+            --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID},AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY},MIGRATION_NEXT_PREFIX=${NEXT_PREFIX},MIGRATION_NEXT_ALLOW_PUBLIC=${NEXT_ALLOW_PUBLIC}"
+
+          # Read the prefix back: a dropped empty value would silently fall back to migration-preview.
+          actual=$(gcloud run jobs describe "$NEXT_JOB_NAME" --project="$PROJECT_ID" --region="$JOB_REGION" --format=json |
+            python3 -c 'import json, sys; env=json.load(sys.stdin)["spec"]["template"]["spec"]["template"]["spec"]["containers"][0].get("env", []); print(next((e.get("value", "") for e in env if e["name"] == "MIGRATION_NEXT_PREFIX"), "<unset>"))')
+          if [[ "$actual" != "$NEXT_PREFIX" ]]; then
+            echo "::error::$NEXT_JOB_NAME has MIGRATION_NEXT_PREFIX=$actual, expected '$NEXT_PREFIX'."
+            exit 1
+          fi
+
+      - name: Update migration-next schedule
+        run: |
+          # The trigger is created once by hand (migration-next/flow.md); this fails if it is missing.
+          gcloud scheduler jobs update http "$NEXT_SCHEDULER_NAME" \
             --schedule "*/30 8-23 * * *" \
             --time-zone "Asia/Tokyo" \
-            --location us-central1
-          gcloud beta scheduler jobs update http antena-delete-old-posts-scheduler-trigger \
-            --schedule "0 0 * * *" \
-            --time-zone "Asia/Tokyo" \
-            --location us-central1
+            --location "$JOB_REGION"
+          # Never resume it here: it is paused on purpose during cutover, rollback,
+          # state resets and emergencies, and a push must not undo that.
+          state=$(gcloud scheduler jobs describe "$NEXT_SCHEDULER_NAME" --location "$JOB_REGION" --format='value(state)')
+          if [[ "$state" == "PAUSED" ]]; then
+            echo "::warning::$NEXT_SCHEDULER_NAME is paused; resume it by hand when the cutover/rollback step allows (migration-next/flow.md)."
+          fi
 
   promote_new_revision:
     needs: [build, deploy]
@@ -144,12 +263,12 @@ jobs:
               --region="asia-northeast1"
 
   update_deployment_status:
-    needs: [create_deployment, build, deploy, promote_new_revision]
+    needs: [create_deployment, build, deploy, deploy_migration_next, promote_new_revision]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Update deployment status (failure)
-        if: "needs.create_deployment.result == 'failure' || needs.build.result == 'failure' || needs.deploy.result == 'failure' || needs.promote_new_revision.result == 'failure'"
+        if: "needs.create_deployment.result == 'failure' || needs.build.result == 'failure' || needs.deploy.result == 'failure' || needs.deploy_migration_next.result == 'failure' || needs.promote_new_revision.result == 'failure'"
         uses: chrnorm/deployment-status@v2
         with:
           token: ${{ github.token }}
@@ -157,7 +276,7 @@ jobs:
           state: 'failure'
           deployment-id: ${{ needs.create_deployment.outputs.deployment_id }}
       - name: Update deployment status (success)
-        if: "needs.create_deployment.result == 'success' && needs.build.result == 'success' && needs.deploy.result == 'success' && needs.promote_new_revision.result == 'success'"
+        if: "needs.create_deployment.result == 'success' && needs.build.result == 'success' && needs.deploy.result == 'success' && needs.deploy_migration_next.result == 'success' && needs.promote_new_revision.result == 'success'"
         uses: chrnorm/deployment-status@v2
         with:
           token: ${{ github.token }}

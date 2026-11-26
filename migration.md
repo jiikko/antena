@@ -6,6 +6,8 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 このインスタンスを使っているのは blog.jiikko.com と prpr-antena の2つで、先に antena を切り離す。
 このドキュメントは antena 側の移行仕様・決定事項・進捗をまとめたもの。
 
+移行前後の環境と記事状態の置き場は [`migration-next/flow.md`](migration-next/flow.md)、GCP上のCloud SQL接続手順は [`docs/gcp-cloud-sql-connection.md`](docs/gcp-cloud-sql-connection.md) にまとめている。
+
 ## 現在の構成（確認済みの事実）
 
 - Rails 7.1 + trilogy (MySQL)、本番 DB は `antena_production`。テーブルは `sites` / `posts` / `categories` / `admin_users` の4つ
@@ -27,30 +29,33 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
    - category は slug で参照し、**slug の変更も禁止**（既存 URL が壊れるため）
    - name / rss_url は YAML に明示する。現行の Site 作成コールバック（RSS URL と名前を HTTP で自動取得する処理）は使わない
 3. **posts の状態は S3 上の JSON ファイルで保持する**（SQL は使わない）
-   - バッチ開始時に S3 からダウンロードし、終了時に S3 へアップロードし直す。想定キーは `state/posts.json`（バケットは `prpr-antena`）
+   - バッチ開始時に S3 からダウンロードし、終了時に S3 へアップロードし直す。キーは `s3://prpr-antena/state/posts.json`（ページと同じバケット）。本文を含むので、バケットポリシーで CloudFront からの読み取りを拒否し、ライフサイクルの削除対象から外してある（`migration-next/flow.md`「記事状態の置き場」）
    - 1件のフィールド: `site_id` / `title` / `url` / `summary` / `content` / `published_at` / `created_at`
    - posts に対して必要な処理は、重複チェック（URL / タイトル）、間引き（5日 / サイトあたり50件）、表示用の絞り込みと並び替えのみ。全件メモリに読み込んで処理してよい
-   - S3 バージョニングを有効化し、破損時に前世代へ戻せるようにする
-   - 初期ファイルは切り替え時に現行 DB の posts から変換して作る
+   - バージョニングは使わない（2026-11-26 ユーザー判断）。破損時はファイルを消せば、次のバッチが空から作り直す
+   - 初期ファイルは作らない。DB の posts は引き継がず、ファイルが無ければバッチが空から始める（2026-11-26 ユーザー判断）
 4. **進め方: まず現行 Rails のまま RDB を切り離して運用を安定させる。その後に Go 書き換えを検討する**（同時にはやらない）。YAML / JSON の形式は Go から読みやすいことを意識する
 
 ## タスク
 
-### タスク1: 本番 DB から YAML 初版を作る（進行中・未完了）
+### タスク1: 本番 DB から YAML 初版を作る（完了）
 
-- 用意済みのもの:
-  - `bin/export_sites_yaml.rb`: 本番 DB から categories / sites を YAML で STDOUT に出し、posts の実測（総件数・サイト別最大・作成期間・content+summary のバイト数）を STDERR に出すスクリプト。admin_users はパスワードハッシュを含むため含めない
-  - `app/models/site_yaml_exporter.rb` + `Cron::FetchAndUpload` 末尾の呼び出し（未コミット）: バッチに相乗りして `s3://prpr-antena/migration/sites.yml` へ YAML をアップロードし、実測をジョブのログに出す方式。exporter の失敗では本体バッチを止めないよう rescue 済み
+- 完了内容:
+  - 本番 DB から `config/sites.yml` を生成し、categories 4件・sites 15件を確認した。全件の name / rss_url に欠けはない
+  - 最終更新日時は sites YAML に固定値として持たせず、posts の状態からバッチ実行時に集計する
+  - `bin/export_sites_yaml.rb` は YAML を再生成するための手動スクリプトとして残す。admin_users はパスワードハッシュを含むため含めない
 - ローカル実行ルートのハマりどころ（判明分）:
   - ADC が必要: `gcloud auth application-default login`
   - 起動に `SECRET_KEY_BASE=1` が必要（本番ジョブと同じダミーでよい）
   - `DATABASE_URL` は `gcloud run jobs describe anten-fetch-posts --region us-central1` の env から取得し、値をチャットやコミットに残さないこと
-  - TCP 接続（127.0.0.1:3306）では Trilogy が `Got packets out of order` になった。cloud-sql-proxy の Unix ソケット経由が有力: `mkdir -p /tmp/cloudsql` のうえで `cloud-sql-proxy --unix-socket /tmp/cloudsql jiikko:asia-northeast1:hoby-db` を起動し、DATABASE_URL の `socket` パラメータを `/tmp/cloudsql/jiikko:asia-northeast1:hoby-db` に差し替える（本番もソケット接続）
-- 完了条件: `config/sites.yml` が生成され、件数・id・rss_url / name の欠けがないことを確認する。ローカルルートで取れた場合、相乗り用の exporter と cron の呼び出しは削除してよい
+  - TCP 接続（127.0.0.1:3306）では Trilogy が `Got packets out of order` になった。Unix ソケット経由なら接続できた
 
-### タスク2: DB なしバッチの実装
+### タスク2: DB なしバッチの実装（コード実装済み・shadow 未確認）
 
-- バッチ開始時に `config/sites.yml` を読み込み、Site / Category を DB ではなく YAML 由来のデータで扱えるようにする
+- 旧ジョブとは別の Cloud Run Job `antena-fetch-posts-next` として並走させ、`MIGRATION_NEXT_MODE`（repository variable）で preview と public を切り替える。手順は `migration-next/flow.md`
+
+- `migration-next/` にDBなしrunner、記事状態のJSONストア、フィード取得、静的HTML生成を実装した
+- バッチ開始時に `config/sites.yml` を読み込み、Site / Category を DB ではなく YAML 由来のデータで扱う
 - posts は S3 の JSON 状態ファイルから読み込み、fetch・重複チェック・間引き・HTML 生成を行い、終了時に S3 へ保存し直す
 - `Site.fetch` のフィード取得と本文掃除（正規表現群）の挙動は現行と変えない
 - `Post#clean_content!` から参照される `ContentClearnupService` はリポジトリ内に定義がなく、死んだコードの可能性が高い。移行時に確認し、実質の移植対象は「フィード取得・本文掃除・HTML 生成・S3 アップロード」の4点とみる
@@ -63,10 +68,12 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 
 ### タスク4: 切り替え
 
-1. Scheduler を停止
-2. 最終エクスポートで YAML を確定し、現行 posts から初期 `posts.json` を生成
-3. ジョブを差し替え、手動実行で S3 ページが更新されることを確認
-4. 1週間様子見。この間 Cloud SQL は生かし、ロールバック可能に保つ
+手順とロールバックは `migration-next/flow.md` の「段階と `MIGRATION_NEXT_MODE`」。要点は次のとおり。
+
+1. `posts.json` は shadow の初回実行で自動で作られる。切り替えの時点では作り直さない
+2. `MIGRATION_NEXT_MODE=public` にしてワークフローを実行する。旧 Scheduler 2本が pause され、新ジョブが公開キーを書く
+3. 新ジョブを手動で実行し、公開ページが更新されることを確認する
+4. 1週間様子見。この間 Cloud SQL と旧ジョブは残し、Scheduler を戻すだけでロールバックできるようにしておく
 
 ### タスク5: その後
 
