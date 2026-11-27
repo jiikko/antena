@@ -25,6 +25,8 @@ module MigrationNext
       @identity = data["identity"]
       @sites = []
     end
+
+    def enabled_sites = sites.select(&:enabled?)
   end
 
   class Site
@@ -394,12 +396,13 @@ module MigrationNext
       raise Error, "category slug=vip is required for the index page" unless category
 
       now = Time.now
-      site_ids = category.sites.select(&:enabled?).map(&:id).to_set
+      enabled_sites = category.enabled_sites
+      site_ids = enabled_sites.map(&:id).to_set
       fresh_posts = @posts.select do |post|
         site_ids.include?(post.site_id) && post.created_at >= now - 2 * 86_400 && post.created_at <= now
       end.sort_by { |post| -post.id }.first(150)
 
-      site_cards = category.sites.map do |site|
+      site_cards = enabled_sites.map do |site|
         recent = site.posts.sort_by { |post| -post.created_at.to_f }.first(4)
         items = recent.map do |post|
           %(<li class="post_by_site">#{link(post.title, post.url, external: true, tracking: true)}</li>)
@@ -458,7 +461,7 @@ module MigrationNext
         HTML
       end.join
 
-      same_category = category.sites.map do |peer|
+      same_category = category.enabled_sites.map do |peer|
         %(<li>#{link("#{peer.name.empty? ? '登録名なし' : peer.name}(#{peer.posts_count})", peer.page_path)}</li>)
       end.join
       body = <<~HTML
