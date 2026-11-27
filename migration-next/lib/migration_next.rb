@@ -489,7 +489,7 @@ module MigrationNext
         active = category.slug == current.slug ? "active" : ""
         %(<li>#{link(category.name, category_path(category.slug), css_class: active)}</li>)
       end.join
-      %(<ul id="menu">#{links}</ul><h3 class="top-buffer">全カテゴリの新着記事</h3>)
+      %(<ul id="menu">#{links}</ul>)
     end
 
     def recent_sidebar
