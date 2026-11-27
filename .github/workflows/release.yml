@@ -6,10 +6,8 @@ on:
       - master
   workflow_dispatch:
 
-# Runs go one at a time so their scheduler pauses and job deploys do not
-# interleave. It does not order runs against a variable change: a run created
-# before MIGRATION_NEXT_MODE is flipped still uses the old value. A pending
-# run is replaced by a newer one (only one pending run per group).
+# Runs go one at a time so job deploys do not interleave. A pending run is
+# replaced by a newer one (only one pending run per group).
 concurrency:
   group: release
   cancel-in-progress: false
@@ -69,12 +67,10 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
-  # DB-free batch (migration-next), the only thing this workflow deploys. The
-  # legacy Rails code is gone; the legacy job, web service and their schedulers
-  # stay in GCP on their last image until the rollback window ends (migration.md).
-  # vars.MIGRATION_NEXT_MODE:
-  #   unset / preview: pages go under migration-preview/; for a rollback, the legacy batch keeps the public pages.
-  #   public:          pages go to the public keys and the legacy schedulers are paused.
+  # The batch that writes https://prpr-antena.com/ (migration-next), the only
+  # thing this workflow deploys. It writes the public page keys: an empty
+  # MIGRATION_NEXT_PREFIX, which the runner accepts only with
+  # MIGRATION_NEXT_ALLOW_PUBLIC=true.
   deploy_migration_next:
     needs: build
     runs-on: ubuntu-latest
@@ -82,30 +78,13 @@ jobs:
       NEXT_JOB_NAME: antena-fetch-posts-next
       NEXT_SCHEDULER_NAME: antena-fetch-posts-next-scheduler-trigger
       JOB_REGION: us-central1
+      NEXT_PREFIX: ""
+      NEXT_ALLOW_PUBLIC: "true"
     steps:
       - id: "auth"
         uses: "google-github-actions/auth@v0"
         with:
           credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
-      - name: Resolve migration-next mode
-        env:
-          MIGRATION_NEXT_MODE: ${{ vars.MIGRATION_NEXT_MODE }}
-        run: |
-          case "${MIGRATION_NEXT_MODE:-preview}" in
-            preview)
-              echo "NEXT_PREFIX=migration-preview" >> "$GITHUB_ENV"
-              echo "NEXT_ALLOW_PUBLIC=false" >> "$GITHUB_ENV"
-              ;;
-            public)
-              echo "NEXT_PREFIX=" >> "$GITHUB_ENV"
-              echo "NEXT_ALLOW_PUBLIC=true" >> "$GITHUB_ENV"
-              ;;
-            *)
-              echo "::error::vars.MIGRATION_NEXT_MODE must be preview or public (got: $MIGRATION_NEXT_MODE)"
-              exit 1
-              ;;
-          esac
-
       - name: Verify migration state
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -123,17 +102,6 @@ jobs:
             echo "::error::https://prpr-antena.com/state/deny-probe.txt returned $code (expected 403); restore the HideMigrationState Deny in the prpr-antena bucket policy."
             exit 1
           fi
-
-      - name: Pause legacy schedulers before publishing
-        if: env.NEXT_ALLOW_PUBLIC == 'true'
-        run: |
-          # Both batches writing the public keys would interleave two post sets.
-          for trigger in anten-fetch-posts-scheduler-trigger antena-delete-old-posts-scheduler-trigger; do
-            state=$(gcloud scheduler jobs describe "$trigger" --location "$JOB_REGION" --format='value(state)')
-            if [[ "$state" != "PAUSED" ]]; then
-              gcloud scheduler jobs pause "$trigger" --location "$JOB_REGION"
-            fi
-          done
 
       - name: Deploy DB-free fetch job
         env:
@@ -168,11 +136,11 @@ jobs:
             --schedule "*/30 8-23 * * *" \
             --time-zone "Asia/Tokyo" \
             --location "$JOB_REGION"
-          # Never resume it here: it is paused on purpose during cutover, rollback,
-          # state resets and emergencies, and a push must not undo that.
+          # Never resume it here: it is paused on purpose during state resets and
+          # emergencies, and a push must not undo that.
           state=$(gcloud scheduler jobs describe "$NEXT_SCHEDULER_NAME" --location "$JOB_REGION" --format='value(state)')
           if [[ "$state" == "PAUSED" ]]; then
-            echo "::warning::$NEXT_SCHEDULER_NAME is paused; resume it by hand when the cutover/rollback step allows (migration-next/flow.md)."
+            echo "::warning::$NEXT_SCHEDULER_NAME is paused; resume it by hand when the reset or emergency is over (migration-next/flow.md)."
           fi
 
   update_deployment_status:

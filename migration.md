@@ -3,12 +3,12 @@
 ## 目的
 
 Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停止したい。
-このインスタンスを使っているのは blog.jiikko.com と prpr-antena の2つで、先に antena を切り離す。
+このインスタンスには blog.jiikko.com（`lokka_production`）・pbm-cloud（`pbm_cloud_production`）・filetree-meta-manager（`filetree_meta_manager_production`）のDBもある（2026-11-27 の `gcloud sql databases list`）。antena は 2026-11-27 に切り離した。
 このドキュメントは antena 側の移行仕様・決定事項・進捗をまとめたもの。
 
 移行前後の環境と記事状態の置き場は [`migration-next/flow.md`](migration-next/flow.md)、GCP上のCloud SQL接続手順は [`docs/gcp-cloud-sql-connection.md`](docs/gcp-cloud-sql-connection.md) にまとめている。
 
-## 移行前の構成（確認済みの事実。Rails のコードは 2026-11-27 に削除済み）
+## 移行前の構成（確認済みの事実。Rails のコードと GCP の旧資源は 2026-11-27 に撤去済み）
 
 - Rails 7.1 + trilogy (MySQL)、本番 DB は `antena_production`。テーブルは `sites` / `posts` / `categories` / `admin_users` の4つ
 - 配信は既に静的化済み: ブラウザは S3 バケット `prpr-antena`（ap-northeast-1）+ CloudFront を見る。Web サービスは管理画面用
@@ -61,18 +61,14 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 - `Post#clean_content!` から参照される `ContentClearnupService` はリポジトリ内に定義がなく、死んだコードの可能性が高い。移行時に確認し、実質の移植対象は「フィード取得・本文掃除・HTML 生成・S3 アップロード」の4点とみる
 - 削除ジョブ（`destroy_old_posts` 相当）は間引きとして fetch バッチ側に統合してよい
 
-### タスク3: 撤去（コードは完了。GCP の旧資源は 12/4 以降）
+### タスク3: 撤去（2026-11-27 完了）
 
-コードを先に消し、GCP の旧資源はロールバックの様子見（タスク4の 4）が終わるまで残す（2026-11-27 ユーザー判断）。
+予定では切り替え後 1 週間はロールバックのために GCP の旧資源を残すことにしていたが、ユーザー判断で同じ日に撤去した（2026-11-27）。
 
-- 完了（2026-11-27）: Rails 一式（管理画面・sorcery・モデル・旧バッチ `Cron::FetchAndUpload` / `S3Uploader`・旧 spec・設定・`bin/export_sites_yaml.rb`）と Rails の gem を削除した。`release.yml` は新ジョブだけをデプロイし、`DATABASE_URL` / `SECRET_KEY_BASE` を使わない。イメージの CMD は `migration-next/bin/run.rb`
-- 残している GCP の旧資源: Cloud Run Job `anten-fetch-posts` / `antena-delete-old-posts`（us-central1）、その Scheduler 2本（PAUSED）、Cloud Run サービス `prpr-antena`（asia-northeast1、管理画面）、Cloud SQL の `antena_production`。旧ジョブはイメージ `web:master-45f78e3…` のまま動かせる。Artifact Registry は「最新5個に入らず、かつ30日より古い」イメージを消すので、このイメージは push の数に関係なく 12/27 まで残る
-- 12/4 以降にやること（ロールバックの必要が無いと判断してから）:
-  1. Cloud Run Job `anten-fetch-posts` / `antena-delete-old-posts` と Scheduler `anten-fetch-posts-scheduler-trigger` / `antena-delete-old-posts-scheduler-trigger` を削除
-  2. Cloud Run サービス `prpr-antena`（asia-northeast1）を削除
-  3. `antena_production` のダンプを取ってから DB を削除（インスタンス `hoby-db` は blog も使うので消さない）
-  4. GitHub の secrets `DATABASE_URL` / `SECRET_KEY_BASE` を削除
-  5. `release.yml` の `Pause legacy schedulers before publishing` と `MIGRATION_NEXT_MODE` の切り替え、`migration-next/flow.md` のロールバック手順を外す。`migration-preview/` 関連と `migration-next` という名前も整理する
+- repo: Rails 一式（管理画面・sorcery・モデル・旧バッチ `Cron::FetchAndUpload` / `S3Uploader`・旧 spec・設定・`bin/export_sites_yaml.rb`）と Rails の gem を削除。`release.yml` は新ジョブだけをデプロイし、常に公開キーへ書く（`MIGRATION_NEXT_MODE` による切り替えと旧 Scheduler の pause を外した）
+- GCP: Cloud Run Job `anten-fetch-posts` / `antena-delete-old-posts` と Scheduler 2本、Cloud Run サービス `prpr-antena`（asia-northeast1）、`hoby-db` の DB `antena_production` を削除。インスタンス `hoby-db` とユーザー `koji` / `root` は他のサービスも使うので残した
+- GitHub: secrets `DATABASE_URL` / `SECRET_KEY_BASE` / `RAILS_MASTER_KEY` と repository variable `MIGRATION_NEXT_MODE` を削除
+- `antena_production` の中身は、消す直前に取った `hoby-db` のオンデマンドバックアップ（ID `1795776107987`）に残る。手元からのダンプは、trilogy が cloud-sql-proxy 越しの認証で `Got packets out of order` になり取れなかった
 
 ### タスク4: 切り替え（2026-11-27 19:02〜19:10 に実施）
 
@@ -81,12 +77,12 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 1. `posts.json` は shadow の初回実行で自動で作られる。切り替えの時点では作り直さない
 2. `MIGRATION_NEXT_MODE=public` にしてワークフローを実行する。旧 Scheduler 2本が pause され、新ジョブが公開キーを書く
 3. 新ジョブを手動で実行し、公開ページが更新されることを確認する
-4. 1週間様子見（12/4 まで）。この間 Cloud SQL と旧ジョブは残し、Scheduler を戻すだけでロールバックできるようにしておく。旧ジョブは 11/27 のイメージのまま（コードは削除済みなので直して出し直すことはできない）
+4. 予定では1週間様子見してから撤去する予定だったが、同じ日に撤去した（タスク3）。Rails のバッチへ戻す手段はもう無い
 
 ### タスク5: その後
 
 - 運用が安定したら Go 書き換えを検討（今の `migration-next` の S3 出力が正解データになる）
-- blog.jiikko.com の静的化は別リポジトリ（`~/src/blog`）の話。両方が外れたら、他に `hoby-db` の利用者がいないか GCP 側で確認してからインスタンスを停止する
+- blog.jiikko.com の静的化は別リポジトリ（`~/src/blog`）の話。`hoby-db` を止めるには、blog に加えて pbm-cloud と filetree-meta-manager のDBも外す必要がある
 
 ## 制約
 
