@@ -63,7 +63,7 @@ sites:
   rss_url: https://www.wara2ch.com/index.rdf
   category: news
   position: 2
-  enable: true
+  enable: false  # サイトの更新が 2024-02-28 で止まっている (2026-11-27 確認、ユーザー判断で無効化)
 - id: 30
   name: 大艦巨砲主義！
   url: https://taikankyohou.com/
@@ -84,7 +84,7 @@ sites:
   rss_url: https://2logch.com/feed
   category: news
   position: 5
-  enable: true
+  enable: false  # サイトの更新が 2024-05-31 で止まっている (2026-11-27 確認、ユーザー判断で無効化)
 - id: 96
   name: ふぇー速
   url: http://fesoku.net/
@@ -126,4 +126,4 @@ sites:
   rss_url: https://korewaeroi.com/feed
   category: adult
   position: 3
-  enable: true
+  enable: false  # サイトの更新が 2026-04-17 で止まっている (2026-11-27 確認、ユーザー判断で無効化)
