@@ -11,7 +11,7 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
           ├─ config/sites.yml を読む
           ├─ S3 から state/posts.json を読む
           ├─ enabledなサイトのRSSを取得・重複確認
-          ├─ 古い記事を間引く（5日より古く、サイトあたり50件を超える分）
+          ├─ 古い記事を間引く（記事が50件を超えるサイトの、5日より古い記事）
           ├─ state/posts.json を S3 へ保存
           └─ HTMLを生成し、ページ用S3の公開キーへアップロード
 ```
@@ -28,6 +28,8 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 | --- | --- |
 | `state/posts.json` | 全記事の状態。無ければ実行が空から作り（「記事状態の始まりと作り直し」）、以後は読み書きする |
 | `locks/migration-next-run.lock` | 多重起動を防ぐ一時ロック。バッチ開始時に作成し、終了時に削除する |
+
+これは本番（prefix が空）のキー。prefix を付けた実行（`migration-preview` や、別の実装の shadow）は `state/<prefix>/posts.json` と `locks/<prefix>/migration-next-run.lock` を使い、本番の記事状態に触れない。中身の形式とロックの取り方、別の実装を並べて動かす手順は `state-format.md` にある。
 
 同じバケットに置くために、`prpr-antena` に次の設定を入れてある（2026-11-26 に適用）。
 
@@ -70,4 +72,4 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 | 2026-11-27 19:02〜19:10 | 切り替え。新ジョブが公開キーを書き、旧ジョブの Scheduler を止めた |
 | 2026-11-27 | Rails のコードを repo から削除し、続けて GCP の旧資源を撤去した（ユーザー判断で、予定していた1週間の様子見を短縮）: 旧ジョブ2本とその Scheduler、Cloud Run サービス `prpr-antena`、DB `antena_production`、GitHub の secrets `DATABASE_URL` / `SECRET_KEY_BASE` / `RAILS_MASTER_KEY`、repository variable `MIGRATION_NEXT_MODE` |
 
-Rails のバッチへ戻す手段はもう無い。`antena_production` の中身は、消す直前に取った `hoby-db` のオンデマンドバックアップ（ID `1795776107987`、説明「before dropping antena_production (2026-11-27)」）に残っている。取り出すときは、このバックアップを別のインスタンスへ復元する（`hoby-db` 自体へ復元すると、同じインスタンスの他のDBも巻き戻る）。
+Rails のバッチへ戻す手段はもう無い。`antena_production` を消した後、`hoby-db` のインスタンスもバックアップごと削除した（2026-11-27、ユーザー判断）ので、移行前の記事データはどこにも残っていない。

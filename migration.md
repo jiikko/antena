@@ -67,13 +67,13 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 予定では切り替え後 1 週間はロールバックのために GCP の旧資源を残すことにしていたが、ユーザー判断で同じ日に撤去した（2026-11-27）。
 
 - repo: Rails 一式（管理画面・sorcery・モデル・旧バッチ `Cron::FetchAndUpload` / `S3Uploader`・旧 spec・設定・`bin/export_sites_yaml.rb`）と Rails の gem を削除。`release.yml` は新ジョブだけをデプロイし、常に公開キーへ書く（`MIGRATION_NEXT_MODE` による切り替えと旧 Scheduler の pause を外した）
-- GCP: Cloud Run Job `anten-fetch-posts` / `antena-delete-old-posts` と Scheduler 2本、Cloud Run サービス `prpr-antena`（asia-northeast1）、`hoby-db` の DB `antena_production` を削除。インスタンス `hoby-db` とユーザー `koji` / `root` は他のサービスも使うので残した
+- GCP: Cloud Run Job `anten-fetch-posts` / `antena-delete-old-posts` と Scheduler 2本、Cloud Run サービス `prpr-antena`（asia-northeast1）、`hoby-db` の DB `antena_production` を削除。続けてインスタンス `hoby-db` を、他のサービスの DB とバックアップごと削除した（ユーザー判断）
 - GitHub: secrets `DATABASE_URL` / `SECRET_KEY_BASE` / `RAILS_MASTER_KEY` と repository variable `MIGRATION_NEXT_MODE` を削除
-- `antena_production` の中身は、消す直前に取った `hoby-db` のオンデマンドバックアップ（ID `1795776107987`）に残る。手元からのダンプは、trilogy が cloud-sql-proxy 越しの認証で `Got packets out of order` になり取れなかった
+- `antena_production` を消す直前にオンデマンドバックアップ（ID `1795776107987`）を取ったが、インスタンスと一緒に削除したので、移行前の記事データは残っていない。手元からのダンプは、trilogy が cloud-sql-proxy 越しの認証で `Got packets out of order` になり取れなかった
 
 ### タスク4: 切り替え（2026-11-27 19:02〜19:10 に実施）
 
-手順とロールバックは `migration-next/flow.md` の「段階と `MIGRATION_NEXT_MODE`」。要点は次のとおり。
+当時の手順の要点は次のとおり（`MIGRATION_NEXT_MODE` による切り替えは撤去で外した）。
 
 1. `posts.json` は shadow の初回実行で自動で作られる。切り替えの時点では作り直さない
 2. `MIGRATION_NEXT_MODE=public` にしてワークフローを実行する。旧 Scheduler 2本が pause され、新ジョブが公開キーを書く
@@ -83,7 +83,7 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 ### タスク5: その後
 
 - 運用が安定したら Go 書き換えを検討（今の `migration-next` の S3 出力が正解データになる）
-- blog.jiikko.com の静的化は別リポジトリ（`~/src/blog`）の話。`hoby-db` を止めるには、blog に加えて pbm-cloud と filetree-meta-manager のDBも外す必要がある
+- 別の実装（Go など）は、本番と別の prefix で並べて動かしてから切り替える。記事状態とロックの形式と手順は `migration-next/state-format.md`
 
 ## 制約
 

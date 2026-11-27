@@ -62,7 +62,9 @@ module MigrationNext
       @summary = data["summary"]
       @content = data["content"]
       @published_at = parse_time(data["published_at"])
-      @created_at = parse_time(data.fetch("created_at"))
+      # Pages and pruning order by created_at; a post without one would fail
+      # later in the run instead of as an unreadable state file.
+      @created_at = parse_time(data.fetch("created_at")) || raise(ArgumentError, "post id=#{@id} has no created_at")
       @updated_at = parse_time(data["updated_at"])
     end
 
@@ -195,7 +197,7 @@ module MigrationNext
     def initialize(env = ENV)
       @bucket = env.fetch("MIGRATION_NEXT_BUCKET", "prpr-antena")
       @region = env.fetch("AWS_REGION", "ap-northeast-1")
-      @prefix = env.fetch("MIGRATION_NEXT_PREFIX", "migration-preview").to_s.sub(%r{\A/+|/+\z}, "")
+      @prefix = env.fetch("MIGRATION_NEXT_PREFIX", "migration-preview").to_s.gsub(%r{\A/+|/+\z}, "")
       @client = Aws::S3::Client.new(region: @region)
 
       if prefix.empty? && env["MIGRATION_NEXT_ALLOW_PUBLIC"] != "true"
@@ -207,9 +209,13 @@ module MigrationNext
       [prefix, relative_path.to_s.sub(%r{\A/+}, "")].reject(&:empty?).join("/")
     end
 
-    def state_key(relative_path)
-      relative_path.to_s.sub(%r{\A/+}, "")
-    end
+    # state/ and locks/ stay at the top so the bucket policy Deny on state/* and
+    # locks/* covers them; a non-empty page prefix goes below them. The live run
+    # (empty prefix) keeps state/posts.json, so a shadow run of another
+    # implementation under its own prefix never reads, writes or locks the live
+    # state. See migration-next/state-format.md.
+    def state_key = scoped_key("state", "posts.json")
+    def lock_key = scoped_key("locks", "migration-next-run.lock")
 
     # nil only for a missing key. Any other failure (AccessDenied, network)
     # raises, so a caller never mistakes an unreadable object for an absent one.
@@ -222,10 +228,13 @@ module MigrationNext
     def write(key, body, content_type: "application/json; charset=utf-8")
       client.put_object(bucket: bucket, key: key, body: body, content_type: content_type)
     end
+
+    private
+
+    def scoped_key(dir, name) = [dir, prefix, name].reject(&:empty?).join("/")
   end
 
   class S3RunLock
-    LOCK_KEY = "locks/migration-next-run.lock"
     # A lock older than this is treated as left behind by a killed execution.
     # Keep it longer than the Cloud Run task timeout (release.yml sets 30m):
     # a live execution must be killed by Cloud Run before another one may take
@@ -291,9 +300,10 @@ module MigrationNext
 
       # Not conditional: a takeover between the read and this delete needs this
       # execution to have held the lock past the stale age, which the Cloud Run
-      # task timeout rules out. A manual run (bin/run.rb from a laptop) has no
-      # such limit; run it only while the scheduled job is paused.
-      @store.client.delete_object(bucket: @store.bucket, key: LOCK_KEY)
+      # task timeout rules out. A manual run (bin/run.rb from a laptop) with the
+      # live (empty) prefix has no such limit; run it only while the scheduled
+      # job is paused.
+      @store.client.delete_object(bucket: @store.bucket, key: @store.lock_key)
       @acquired = false
     rescue StandardError => e
       @err.puts("WARN migration-next lock release failed: #{e.class}: #{e.message}; lock may need manual cleanup")
@@ -311,7 +321,7 @@ module MigrationNext
       request = @store.client.build_request(
         :put_object,
         bucket: @store.bucket,
-        key: LOCK_KEY,
+        key: @store.lock_key,
         body: lock_body,
         content_type: "application/json; charset=utf-8",
       )
@@ -348,7 +358,7 @@ module MigrationNext
     # object comes back as {} (no token, no started_at), so it is treated as
     # stale and taken over instead of blocking every run.
     def read_lock
-      response = @store.client.get_object(bucket: @store.bucket, key: LOCK_KEY)
+      response = @store.client.get_object(bucket: @store.bucket, key: @store.lock_key)
       body = response.body.read
       parsed = begin
         JSON.parse(body)
@@ -616,7 +626,7 @@ module MigrationNext
       @log = log
       @err = err
       @store = S3Store.new(env)
-      @state_key = @store.state_key("state/posts.json")
+      @state_key = @store.state_key
     end
 
     def execute

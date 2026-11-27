@@ -27,7 +27,7 @@ RSpec.describe MigrationNext::Runner do
 
     it "starts from an empty post set and warns" do
       expect(load_state.posts).to eq([])
-      expect(err.string).to include("WARN migration-next: s3://prpr-antena/state/posts.json does not exist")
+      expect(err.string).to include("WARN migration-next: s3://prpr-antena/state/migration-preview/posts.json does not exist")
     end
   end
 
@@ -44,6 +44,16 @@ RSpec.describe MigrationNext::Runner do
 
     it "raises instead of starting empty" do
       expect { load_state }.to raise_error(MigrationNext::Error, /posts state could not be read/)
+    end
+  end
+
+  context "when a post has an empty created_at" do
+    let(:get_object_stub) do
+      { body: JSON.generate("posts" => [{ "id" => 7, "site_id" => 1, "created_at" => nil }]) }
+    end
+
+    it "raises as an unreadable state" do
+      expect { load_state }.to raise_error(MigrationNext::Error, /post id=7 has no created_at/)
     end
   end
 
