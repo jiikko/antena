@@ -6,7 +6,7 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 このインスタンスには blog.jiikko.com（`lokka_production`）・pbm-cloud（`pbm_cloud_production`）・filetree-meta-manager（`filetree_meta_manager_production`）のDBもある（2026-11-27 の `gcloud sql databases list`）。antena は 2026-11-27 に切り離した。
 このドキュメントは antena 側の移行仕様・決定事項・進捗をまとめたもの。
 
-移行前後の環境と記事状態の置き場は [`migration-next/flow.md`](migration-next/flow.md)、GCP上のCloud SQL接続手順は [`docs/gcp-cloud-sql-connection.md`](docs/gcp-cloud-sql-connection.md) にまとめている。
+移行前後の環境と記事状態の置き場は [`migration-next/flow.md`](migration-next/flow.md) にまとめている。
 
 ## 移行前の構成（確認済みの事実。Rails のコードと GCP の旧資源は 2026-11-27 に撤去済み）
 
