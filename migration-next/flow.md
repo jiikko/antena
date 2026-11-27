@@ -10,7 +10,7 @@
 | 記事と本文 | Cloud SQL の `posts` | ページ用バケット `prpr-antena` の `state/posts.json`（サイトからは読めない） |
 | 公開HTML | S3 バケット `prpr-antena` | 同じページ用バケット。確認中は `migration-preview/`、切り替え後は現在の公開キー |
 
-`admin_users` はサイト定義や記事状態に含めない。Rails のWebサービスを撤去する作業は別途残っているため、この段階ではWebサービス側のDB接続は維持する。DBを使わなくなるのは、まずfetchバッチ。
+`admin_users` はサイト定義や記事状態に含めない。Rails のコード（Webサービス・管理画面・旧バッチ）は 2026-11-27 に repo から削除した。GCP 上の旧ジョブ・Webサービス・Cloud SQL は、ロールバックの様子見が終わる 12/4 まで最後のイメージのまま残す（`migration.md` のタスク3）。
 
 ## 記事状態の置き場
 
@@ -18,7 +18,7 @@
 
 | キー | 内容 |
 | --- | --- |
-| `state/posts.json` | 全記事の状態。初回は現行DBから作り、以後はmigration-nextが読み書きする |
+| `state/posts.json` | 全記事の状態。無ければ初回の実行が空から作り（「記事状態の始まり」）、以後はmigration-nextが読み書きする |
 | `locks/migration-next-run.lock` | 多重起動を防ぐ一時ロック。バッチ開始時に作成し、終了時に削除する |
 
 同じバケットに置くために、`prpr-antena` に次の設定を入れてある（2026-11-26 に適用。適用前の設定は手元の `tmp/migration-next-cutover-20261126/aws2/before-*.json`）。
@@ -34,7 +34,7 @@
 
 ## GCP上のCloud SQLへの接続
 
-`config/sites.yml` の再生成など一時的なDB接続手順は、他のリポジトリでも参照できるよう [`docs/gcp-cloud-sql-connection.md`](../docs/gcp-cloud-sql-connection.md) に分けてある。切り替え後の定期fetchジョブには `DATABASE_URL` を設定しない。
+一時的なDB接続手順は、他のリポジトリでも参照できるよう [`docs/gcp-cloud-sql-connection.md`](../docs/gcp-cloud-sql-connection.md) に分けてある。切り替え後の定期fetchジョブには `DATABASE_URL` を設定しない。
 
 ## Before: 現行の定期バッチ
 
@@ -85,7 +85,7 @@ Cloud SQL の記事は引き継がない（2026-11-26 ユーザー判断）。`s
 | shadow | 未設定 / `preview` | 旧Railsジョブ | `migration-preview/` | 動かす |
 | 切り替え後 | `public` | 新ジョブ | 公開キー（prefixなし・`MIGRATION_NEXT_ALLOW_PUBLIC=true`） | ワークフローがpauseする |
 
-旧Railsジョブ（`anten-fetch-posts` / `antena-delete-old-posts`）は切り替え後もイメージを更新し続ける。ロールバックではSchedulerを戻すだけで済む。
+旧Railsジョブ（`anten-fetch-posts` / `antena-delete-old-posts`）は、Rails のコードを消した 2026-11-27 からイメージを更新していない。最後にデプロイしたイメージ（`web:master-45f78e3…`）のまま残しているので、ロールバックではSchedulerを戻すだけで済む。Artifact Registry は「最新5個に入らず、かつ30日より古い」イメージを消すので、このイメージは push の数に関係なく 12/27 まで残り、その後に消える。それより後はロールバックできない。
 
 ### 1. 事前準備（手作業・初回のみ）
 

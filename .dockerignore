@@ -1,0 +1,5 @@
+# Local-only files must not reach the image (tmp/ holds work logs and local secrets).
+.git
+tmp
+log
+.bundle

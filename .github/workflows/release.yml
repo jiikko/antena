@@ -17,7 +17,6 @@ concurrency:
 env:
   PROJECT_ID: jiikko
   REGISTRY_HOST: asia-northeast1-docker.pkg.dev
-  SERVICE_NAME: prpr-antena
   REPOSITORY_NAME: prpr-antena
 
 jobs:
@@ -70,74 +69,11 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Add SHORT_SHA env property with commit short sha
-        run: echo "SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)" >> "$GITHUB_ENV"
-      - id: "auth"
-        uses: "google-github-actions/auth@v0"
-        with:
-          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
-      - name: Deploy to Cloud Run
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SECRET_KEY_BASE: ${{ secrets.SECRET_KEY_BASE }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          MIGRATION_NEXT_MODE: ${{ vars.MIGRATION_NEXT_MODE }}
-        run: |
-          # web
-          gcloud run deploy "$SERVICE_NAME" \
-            --project="$PROJECT_ID" \
-            --platform=managed \
-            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
-            --region="asia-northeast1" \
-            --tag="master-${SHORT_SHA}" \
-            --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
-            --set-env-vars="SECRET_KEY_BASE=${SECRET_KEY_BASE}" \
-            --set-env-vars="RAILS_ENV=production" \
-            --allow-unauthenticated
-
-          # jobs
-          # The legacy Rails jobs stay deployed after the cutover so that a
-          # rollback only needs their schedulers resumed (see migration-next/flow.md).
-          gcloud beta run jobs update anten-fetch-posts \
-            --region=us-central1 \
-            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
-            --command "bin/rails,r,Cron::FetchAndUpload.new.execute" \
-            --max-retries 0 \
-            --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
-            --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
-            --set-env-vars="AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
-            --set-env-vars="SECRET_KEY_BASE=1"
-          gcloud beta run jobs update antena-delete-old-posts \
-            --region=us-central1 \
-            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
-            --command "bin/rails,r,Site.destroy_old_posts" \
-            --max-retries 0 \
-            --set-env-vars="DATABASE_URL=${DATABASE_URL}" \
-            --set-env-vars="SECRET_KEY_BASE='1'"
-
-          # scheduler
-          # After the cutover (MIGRATION_NEXT_MODE=public) deploy_migration_next
-          # pauses these triggers; do not touch them here.
-          if [[ "$MIGRATION_NEXT_MODE" != "public" ]]; then
-            gcloud beta scheduler jobs update http anten-fetch-posts-scheduler-trigger \
-              --schedule "*/30 8-23 * * *" \
-              --time-zone "Asia/Tokyo" \
-              --location us-central1
-            gcloud beta scheduler jobs update http antena-delete-old-posts-scheduler-trigger \
-              --schedule "0 0 * * *" \
-              --time-zone "Asia/Tokyo" \
-              --location us-central1
-          fi
-
-  # DB-free batch (migration-next). It runs as a separate Cloud Run job next to
-  # the legacy one and does not block the web deploy. vars.MIGRATION_NEXT_MODE:
-  #   unset / preview: pages go under migration-preview/; the legacy batch keeps the public pages.
+  # DB-free batch (migration-next), the only thing this workflow deploys. The
+  # legacy Rails code is gone; the legacy job, web service and their schedulers
+  # stay in GCP on their last image until the rollback window ends (migration.md).
+  # vars.MIGRATION_NEXT_MODE:
+  #   unset / preview: pages go under migration-preview/; for a rollback, the legacy batch keeps the public pages.
   #   public:          pages go to the public keys and the legacy schedulers are paused.
   deploy_migration_next:
     needs: build
@@ -239,36 +175,13 @@ jobs:
             echo "::warning::$NEXT_SCHEDULER_NAME is paused; resume it by hand when the cutover/rollback step allows (migration-next/flow.md)."
           fi
 
-  promote_new_revision:
-    needs: [build, deploy]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Add SHORT_SHA env property with commit short sha
-        run: echo "SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)" >> "$GITHUB_ENV"
-      - id: "auth"
-        uses: "google-github-actions/auth@v0"
-        with:
-          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
-      - name: Update traffic
-        # NOTE: デプロイした直後だと、トラフィックの移行先が見えないことがあるのでretryする、と思ったけどneedsの指定が間違っていただけの可能性がある
-        uses: nick-fields/retry@v2
-        with:
-          max_attempts: 5
-          timeout_minutes: 5
-          command: |
-            gcloud beta run services update-traffic "$SERVICE_NAME" \
-              --project="$PROJECT_ID" \
-              --platform=managed \
-              --to-tags="master-${SHORT_SHA}=100" \
-              --region="asia-northeast1"
-
   update_deployment_status:
-    needs: [create_deployment, build, deploy, deploy_migration_next, promote_new_revision]
+    needs: [create_deployment, build, deploy_migration_next]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Update deployment status (failure)
-        if: "needs.create_deployment.result == 'failure' || needs.build.result == 'failure' || needs.deploy.result == 'failure' || needs.deploy_migration_next.result == 'failure' || needs.promote_new_revision.result == 'failure'"
+        if: "needs.create_deployment.result == 'failure' || needs.build.result == 'failure' || needs.deploy_migration_next.result == 'failure'"
         uses: chrnorm/deployment-status@v2
         with:
           token: ${{ github.token }}
@@ -276,7 +189,7 @@ jobs:
           state: 'failure'
           deployment-id: ${{ needs.create_deployment.outputs.deployment_id }}
       - name: Update deployment status (success)
-        if: "needs.create_deployment.result == 'success' && needs.build.result == 'success' && needs.deploy.result == 'success' && needs.deploy_migration_next.result == 'success' && needs.promote_new_revision.result == 'success'"
+        if: "needs.create_deployment.result == 'success' && needs.build.result == 'success' && needs.deploy_migration_next.result == 'success'"
         uses: chrnorm/deployment-status@v2
         with:
           token: ${{ github.token }}

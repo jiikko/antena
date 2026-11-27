@@ -18,12 +18,9 @@ RUN bundle install --jobs 100
 # target production
 FROM base as production
 LABEL image.type=production
-ENV RAILS_ENV production
 
 COPY . .
 RUN bundle install --jobs 10 --without development,test
-COPY . /app
-# assetsがないのでskip
-# RUN SECRET_KEY_BASE=dummy bundle exec rails assets:precompile
 
-CMD ["bin/start.sh"]
+# The Cloud Run job antena-fetch-posts-next sets the same command (release.yml).
+CMD ["bundle", "exec", "ruby", "migration-next/bin/run.rb"]

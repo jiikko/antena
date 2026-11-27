@@ -8,7 +8,7 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 
 移行前後の環境と記事状態の置き場は [`migration-next/flow.md`](migration-next/flow.md)、GCP上のCloud SQL接続手順は [`docs/gcp-cloud-sql-connection.md`](docs/gcp-cloud-sql-connection.md) にまとめている。
 
-## 現在の構成（確認済みの事実）
+## 移行前の構成（確認済みの事実。Rails のコードは 2026-11-27 に削除済み）
 
 - Rails 7.1 + trilogy (MySQL)、本番 DB は `antena_production`。テーブルは `sites` / `posts` / `categories` / `admin_users` の4つ
 - 配信は既に静的化済み: ブラウザは S3 バケット `prpr-antena`（ap-northeast-1）+ CloudFront を見る。Web サービスは管理画面用
@@ -43,14 +43,14 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 - 完了内容:
   - 本番 DB から `config/sites.yml` を生成し、categories 4件・sites 15件を確認した。全件の name / rss_url に欠けはない
   - 最終更新日時は sites YAML に固定値として持たせず、posts の状態からバッチ実行時に集計する
-  - `bin/export_sites_yaml.rb` は YAML を再生成するための手動スクリプトとして残す。admin_users はパスワードハッシュを含むため含めない
+  - `bin/export_sites_yaml.rb`（DB から YAML を再生成する手動スクリプト）は、Rails と一緒に 2026-11-27 に削除した。以後の正本は `config/sites.yml` で、DB から作り直すことは無い
 - ローカル実行ルートのハマりどころ（判明分）:
   - ADC が必要: `gcloud auth application-default login`
   - 起動に `SECRET_KEY_BASE=1` が必要（本番ジョブと同じダミーでよい）
   - `DATABASE_URL` は `gcloud run jobs describe anten-fetch-posts --region us-central1` の env から取得し、値をチャットやコミットに残さないこと
   - TCP 接続（127.0.0.1:3306）では Trilogy が `Got packets out of order` になった。Unix ソケット経由なら接続できた
 
-### タスク2: DB なしバッチの実装（コード実装済み・shadow 未確認）
+### タスク2: DB なしバッチの実装（完了。2026-11-26〜27 に shadow で確認）
 
 - 旧ジョブとは別の Cloud Run Job `antena-fetch-posts-next` として並走させ、`MIGRATION_NEXT_MODE`（repository variable）で preview と public を切り替える。手順は `migration-next/flow.md`
 
@@ -61,23 +61,31 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 - `Post#clean_content!` から参照される `ContentClearnupService` はリポジトリ内に定義がなく、死んだコードの可能性が高い。移行時に確認し、実質の移植対象は「フィード取得・本文掃除・HTML 生成・S3 アップロード」の4点とみる
 - 削除ジョブ（`destroy_old_posts` 相当）は間引きとして fetch バッチ側に統合してよい
 
-### タスク3: 撤去
+### タスク3: 撤去（コードは完了。GCP の旧資源は 12/4 以降）
 
-- 管理画面・admin_users・sorcery・Web サービスを削除
-- `release.yml` から `DATABASE_URL` を除去し、ジョブが DB 接続なしで動く構成にする
+コードを先に消し、GCP の旧資源はロールバックの様子見（タスク4の 4）が終わるまで残す（2026-11-27 ユーザー判断）。
 
-### タスク4: 切り替え
+- 完了（2026-11-27）: Rails 一式（管理画面・sorcery・モデル・旧バッチ `Cron::FetchAndUpload` / `S3Uploader`・旧 spec・設定・`bin/export_sites_yaml.rb`）と Rails の gem を削除した。`release.yml` は新ジョブだけをデプロイし、`DATABASE_URL` / `SECRET_KEY_BASE` を使わない。イメージの CMD は `migration-next/bin/run.rb`
+- 残している GCP の旧資源: Cloud Run Job `anten-fetch-posts` / `antena-delete-old-posts`（us-central1）、その Scheduler 2本（PAUSED）、Cloud Run サービス `prpr-antena`（asia-northeast1、管理画面）、Cloud SQL の `antena_production`。旧ジョブはイメージ `web:master-45f78e3…` のまま動かせる。Artifact Registry は「最新5個に入らず、かつ30日より古い」イメージを消すので、このイメージは push の数に関係なく 12/27 まで残る
+- 12/4 以降にやること（ロールバックの必要が無いと判断してから）:
+  1. Cloud Run Job `anten-fetch-posts` / `antena-delete-old-posts` と Scheduler `anten-fetch-posts-scheduler-trigger` / `antena-delete-old-posts-scheduler-trigger` を削除
+  2. Cloud Run サービス `prpr-antena`（asia-northeast1）を削除
+  3. `antena_production` のダンプを取ってから DB を削除（インスタンス `hoby-db` は blog も使うので消さない）
+  4. GitHub の secrets `DATABASE_URL` / `SECRET_KEY_BASE` を削除
+  5. `release.yml` の `Pause legacy schedulers before publishing` と `MIGRATION_NEXT_MODE` の切り替え、`migration-next/flow.md` のロールバック手順を外す。`migration-preview/` 関連と `migration-next` という名前も整理する
+
+### タスク4: 切り替え（2026-11-27 19:02〜19:10 に実施）
 
 手順とロールバックは `migration-next/flow.md` の「段階と `MIGRATION_NEXT_MODE`」。要点は次のとおり。
 
 1. `posts.json` は shadow の初回実行で自動で作られる。切り替えの時点では作り直さない
 2. `MIGRATION_NEXT_MODE=public` にしてワークフローを実行する。旧 Scheduler 2本が pause され、新ジョブが公開キーを書く
 3. 新ジョブを手動で実行し、公開ページが更新されることを確認する
-4. 1週間様子見。この間 Cloud SQL と旧ジョブは残し、Scheduler を戻すだけでロールバックできるようにしておく
+4. 1週間様子見（12/4 まで）。この間 Cloud SQL と旧ジョブは残し、Scheduler を戻すだけでロールバックできるようにしておく。旧ジョブは 11/27 のイメージのまま（コードは削除済みなので直して出し直すことはできない）
 
 ### タスク5: その後
 
-- 運用が安定したら Go 書き換えを検討（Rails 版の S3 出力が正解データになる）
+- 運用が安定したら Go 書き換えを検討（今の `migration-next` の S3 出力が正解データになる）
 - blog.jiikko.com の静的化は別リポジトリ（`~/src/blog`）の話。両方が外れたら、他に `hoby-db` の利用者がいないか GCP 側で確認してからインスタンスを停止する
 
 ## 制約

@@ -1,4 +1,0 @@
-FactoryBot.define do
-  factory :site do
-  end
-end

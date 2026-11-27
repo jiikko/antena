@@ -6,7 +6,7 @@
 # - サイトをやめるときは行を消さず enable: false にする。
 # - category は slug で参照する。categories の slug 変更も既存URLが壊れるので禁止。
 # - 並び順は position の昇順。
-# - このファイルを変更して master にマージすると、次回のバッチ実行から反映される。
+# - このファイルを変更して master に push すると、リリース（release.yml）がジョブのイメージを更新し、その後のバッチ実行から反映される。
 ---
 categories:
 - id: 1
