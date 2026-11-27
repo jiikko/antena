@@ -36,3 +36,11 @@ ruby spec/fixtures/golden/build_input.rb      # 入力を作り直すとき
 UPDATE_GOLDEN=1 bundle exec rspec spec/migration_next/golden_pages_spec.rb
 git diff spec/fixtures/golden/pages            # 変わったページが意図どおりか読む
 ```
+
+## 記録した RSS（フィード → 記事）
+
+HTML の golden とは別に、本物の RSS から作る記事の候補（`MigrationNext::FeedEntries.parse` の出力）も固めてある。第三者の記事本文を含むので public の repo には入れず、記録した Mac の `tmp/feed-record-20261127/` だけに置いている（ユーザー判断 2026-11-27）。
+
+- サイトごとに `<id>.xml`（runner と同じ `Net::HTTP.get_response` で受けた本文そのもの）、`<id>.meta.json`（URL・status・記録した時刻）、`<id>.expected.json`（期待する記事の候補）
+- `spec/migration_next/feed_entries_golden_spec.rb` が比べる。未来の記事を外す判定の `now` は記録した時刻。ファイルが無いと pending になる（緑にはならない）。置き場は `ANTENA_FEED_FIXTURES` で変えられる
+- 記録し直すスクリプトは同じ場所の `record.rb`（`bundle exec ruby tmp/feed-record-20261127/record.rb <出力先>`）。記録し直したら `UPDATE_GOLDEN=1` で期待値を作り直す

@@ -554,6 +554,60 @@ module MigrationNext
     def tokyo_time(time) = time.getlocal("+09:00")
   end
 
+  # Turns one RSS / RDF / Atom body into post candidates, in feed order. Entries
+  # without a URL and entries published after now are dropped; duplicates
+  # against the existing posts are the caller's job. Returns nil when Feedjira
+  # returns a status code instead of a feed (the runner skips the site).
+  # The recorded-feed spec (spec/migration_next/feed_entries_golden_spec.rb)
+  # compares this output with expected entries for real feeds.
+  module FeedEntries
+    def self.parse(body, now:)
+      feed = Feedjira.parse(body)
+      return nil if feed.is_a?(Integer)
+
+      Array(feed.entries).filter_map do |entry|
+        published_at = parse_published(entry.published)
+        next if published_at && now < published_at
+        next if entry.url.to_s.empty?
+
+        {
+          "title" => entry.title,
+          "url" => entry.url,
+          "summary" => entry.summary,
+          "content" => cleaned_content(entry.content, entry.summary),
+          "published_at" => published_at,
+        }
+      end
+    end
+
+    def self.parse_published(value)
+      return nil if value.nil?
+      return value.to_time if value.respond_to?(:to_time)
+
+      Time.parse(value.to_s)
+    rescue ArgumentError
+      nil
+    end
+
+    def self.cleaned_content(content, summary)
+      text = content
+      if text
+        text = text.gsub(%r!<script[^>]*>.*</script>!m, "")
+        text = text.gsub(%r!<img src="[^"]*" width=.1. height=.1[^>]*>!m, "")
+        text = text.gsub(%r_<!--[^-]*-->m_, "")
+        text = text.gsub(%r!<a href=.http://2ch-c.net/[^>]*>[^<]*</a>!m, "")
+        text = text.gsub(%r!<br( /)?>!, "")
+        text = text.gsub(%r!<a [^>]*>続きを読む</a>!m, "")
+        text = text.gsub(%r!&nbsp;!, "")
+        text = text.gsub(%r!&gt;!, "")
+      end
+
+      doc = Nokogiri::HTML.parse(text || summary || "")
+      doc.css("[id=related-title], .automatic-related, [id=article_mid], .kijinai").remove
+      doc.to_html
+    end
+  end
+
   class Runner
     DEFAULT_SITES_FILE = File.expand_path("../../config/sites.yml", __dir__)
 
@@ -623,29 +677,24 @@ module MigrationNext
           next if site.rss_url.empty?
 
           response = Net::HTTP.get_response(URI(site.rss_url))
-          feed = Feedjira.parse(response.body)
-          next if feed.is_a?(Integer)
+          entries = FeedEntries.parse(response.body, now: Time.now)
+          next unless entries
 
           inserted = 0
-          Array(feed.entries).each do |entry|
-            published_at = parse_published(entry.published)
-            next if published_at && Time.now < published_at
-            next if entry.url.to_s.empty?
-            next if urls.include?(entry.url) || titles.include?(entry.title)
+          entries.each do |entry|
+            next if urls.include?(entry["url"]) || titles.include?(entry["title"])
 
             state.posts << PostRecord.new(
-              "id" => next_id,
-              "site_id" => site.id,
-              "title" => entry.title,
-              "url" => entry.url,
-              "summary" => entry.summary,
-              "content" => cleaned_content(entry.content, entry.summary),
-              "published_at" => published_at&.iso8601(6),
-              "created_at" => Time.now.utc.iso8601(6),
-              "updated_at" => Time.now.utc.iso8601(6),
+              entry.merge(
+                "id" => next_id,
+                "site_id" => site.id,
+                "published_at" => entry["published_at"]&.iso8601(6),
+                "created_at" => Time.now.utc.iso8601(6),
+                "updated_at" => Time.now.utc.iso8601(6),
+              ),
             )
-            urls << entry.url
-            titles << entry.title if entry.title
+            urls << entry["url"]
+            titles << entry["title"] if entry["title"]
             next_id += 1
             inserted += 1
           end
@@ -654,33 +703,6 @@ module MigrationNext
           @err.puts("WARN #{site.name} (site_id=#{site.id}): feed error #{e.class}: #{e.message}")
         end
       end
-    end
-
-    def parse_published(value)
-      return nil if value.nil?
-      return value.to_time if value.respond_to?(:to_time)
-
-      Time.parse(value.to_s)
-    rescue ArgumentError
-      nil
-    end
-
-    def cleaned_content(content, summary)
-      text = content
-      if text
-        text = text.gsub(%r!<script[^>]*>.*</script>!m, "")
-        text = text.gsub(%r!<img src="[^"]*" width=.1. height=.1[^>]*>!m, "")
-        text = text.gsub(%r_<!--[^-]*-->m_, "")
-        text = text.gsub(%r!<a href=.http://2ch-c.net/[^>]*>[^<]*</a>!m, "")
-        text = text.gsub(%r!<br( /)?>!, "")
-        text = text.gsub(%r!<a [^>]*>続きを読む</a>!m, "")
-        text = text.gsub(%r!&nbsp;!, "")
-        text = text.gsub(%r!&gt;!, "")
-      end
-
-      doc = Nokogiri::HTML.parse(text || summary || "")
-      doc.css("[id=related-title], .automatic-related, [id=article_mid], .kijinai").remove
-      doc.to_html
     end
 
     def prune_old_posts(state, catalog)
