@@ -1,0 +1,16 @@
+# Golden input: a fixed site catalog (not config/sites.yml, so editing the real
+# catalog does not change the golden pages). Shapes the rendering depends on:
+# positions out of id order, a disabled site, an enabled site without posts,
+# an empty site name and a category without sites.
+categories:
+- {id: 1, name: ＶＩＰ, slug: vip}
+- {id: 2, name: ニュー速, slug: news}
+- {id: 5, name: 奥様, slug: mom}
+- {id: 6, name: アダルト, slug: adult}
+sites:
+- {id: 1, name: "サイトA <&>", url: "https://a.example/", rss_url: "https://a.example/rss", category: vip, position: 2, enable: true}
+- {id: 2, name: サイトB, url: "https://b.example/", rss_url: "https://b.example/rss", category: vip, position: 1, enable: true}
+- {id: 3, name: 無効のサイト, url: "https://c.example/", rss_url: "https://c.example/rss", category: vip, position: 3, enable: false}
+- {id: 10, name: "", url: "https://d.example/", rss_url: "https://d.example/rss", category: news, position: 1, enable: true}
+- {id: 11, name: 記事の無いサイト, url: "https://e.example/", rss_url: "https://e.example/rss", category: news, position: 2, enable: true}
+- {id: 20, name: 奥様のサイト, url: "https://f.example/", rss_url: "https://f.example/rss", category: mom, position: 1, enable: true}

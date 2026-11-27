@@ -366,10 +366,13 @@ module MigrationNext
   end
 
   class HtmlRenderer
-    def initialize(catalog:, posts:, prefix:)
+    # now: the clock for the "last 2 days" lists. Tests pass a fixed time so the
+    # golden pages (spec/fixtures/golden) do not depend on when they run.
+    def initialize(catalog:, posts:, prefix:, now: Time.now)
       @catalog = catalog
       @posts = posts
       @prefix = prefix
+      @now = now
       @style = File.read(File.expand_path("../templates/style.html", __dir__))
     end
 
@@ -395,7 +398,7 @@ module MigrationNext
     def category_page(category)
       raise Error, "category slug=vip is required for the index page" unless category
 
-      now = Time.now
+      now = @now
       enabled_sites = category.enabled_sites
       site_ids = enabled_sites.map(&:id).to_set
       fresh_posts = @posts.select do |post|
