@@ -3,6 +3,7 @@
 ## 目的
 
 Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停止したい。
+→ 2026-11-27 に、中の全DB（他のサービスの分も。ユーザーが使っていないと判断）とバックアップごとインスタンスを削除した。
 このインスタンスには blog.jiikko.com（`lokka_production`）・pbm-cloud（`pbm_cloud_production`）・filetree-meta-manager（`filetree_meta_manager_production`）のDBもある（2026-11-27 の `gcloud sql databases list`）。antena は 2026-11-27 に切り離した。
 このドキュメントは antena 側の移行仕様・決定事項・進捗をまとめたもの。
 
