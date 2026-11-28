@@ -123,6 +123,9 @@ func TestRunWritesLiveKeysAndDedupsAcrossRuns(t *testing.T) {
 	if _, ok := e.fake.Object("locks/migration-next-run.lock"); ok {
 		t.Error("lock not released")
 	}
+	if !strings.HasPrefix(e.log.String(), "migration-next started: pages under s3://prpr-antena//, state s3://prpr-antena/state/posts.json\n") {
+		t.Fatalf("no start line first: %s", e.log.String())
+	}
 	if !strings.Contains(e.log.String(), "one: +2\n") || !strings.Contains(e.log.String(), "two: +1\n") ||
 		!strings.Contains(e.log.String(), "migration-next uploaded 4 pages under s3://prpr-antena// and 3 posts to s3://prpr-antena/state/posts.json") {
 		t.Fatal(e.log.String())

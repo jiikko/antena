@@ -34,6 +34,10 @@ type Runner struct {
 func (r *Runner) warn(msg string) { fmt.Fprintln(r.Err, msg) }
 
 func (r *Runner) Execute(ctx context.Context) error {
+	// The other progress lines come only after the first feed is fetched; this
+	// one marks the start, so the run's own time can be read from the log.
+	fmt.Fprintf(r.Log, "migration-next started: pages under s3://%s/%s/, state s3://%s/%s\n",
+		r.Store.Bucket, r.Store.Prefix, r.Store.Bucket, r.Store.StateKey())
 	lock := store.NewLock(r.Store, r.warn, store.DefaultStaleAfter, r.Now)
 	ok, err := lock.Acquire(ctx)
 	if err != nil || !ok {
