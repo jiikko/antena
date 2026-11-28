@@ -4,7 +4,7 @@
 
 ## 使っている技術
 
-- GCP Cloud Run Jobs（Ruby のバッチ。Rails と DB は使わない）
+- GCP Cloud Run Jobs（Go のバッチ。DB は使わない）
 - AWS S3 + CloudFront
 
 ## アーキテクチャ
@@ -16,7 +16,8 @@
 - Cloud Run Job `antena-fetch-posts-next` を Cloud Scheduler が 30 分おき（8〜23 時 JST）に動かす
   - `config/sites.yml` のサイトの RSS を取得し、記事の状態 `s3://prpr-antena/state/posts.json` に足す
   - 古い記事を間引き（5 日より古く、サイトあたり 50 件を超える分）、トップ・カテゴリ・サイト別の HTML を生成して S3 にアップロードする
-- 実装は `migration-next/`（詳細は `migration-next/README.md` と `migration-next/flow.md`）
+- 実装は `batch/`（Go。詳細は `batch/README.md`、運用は `migration-next/flow.md`）
+- `migration-next/` は前の Ruby の実装。本番では動かさず、Go のテストが比べる答え（`spec/fixtures/golden/`）を作るために残している
 
 ## サイトの追加・停止
 
@@ -24,8 +25,9 @@
 
 ## 本番環境へのデプロイ
 
-- master ブランチへ push すると、`.github/workflows/release.yml` がイメージをビルドし、バッチのジョブを更新する
+- master ブランチへ push すると、`.github/workflows/release.yml` が Go のイメージ（Dockerfile の `go` target）をビルドし、バッチのジョブを更新する
 
 ## テスト
 
-- `bundle exec rspec`
+- Go: `cd batch && go test ./...`
+- Ruby（答えを作る側）: `bundle exec rspec`

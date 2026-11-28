@@ -31,11 +31,10 @@ jobs:
     outputs:
       deployment_id: ${{ steps.deployment.outputs.deployment_id }}
 
-  # The Ruby chain (test_ruby -> build -> deploy_migration_next) and the Go
-  # chain (test_go -> build_go -> deploy_go_shadow) do not depend on each
-  # other: a Go failure must not stop the production Ruby deploy.
-  # Tests run in the same Ruby image as production (Dockerfile: ruby:3.2.2),
-  # so the Ruby output compared here is the production one.
+  # Production runs the Go implementation (test_go -> build_go -> deploy_batch).
+  # The Ruby implementation (migration-next/) is kept as the oracle that
+  # produces the golden files the Go tests compare with; test_ruby keeps it
+  # working but does not gate the deploy.
   test_ruby:
     runs-on: ubuntu-latest
     container: ruby:3.2.2
@@ -77,43 +76,6 @@ jobs:
           # Tests that need local-only fixtures skip in CI; list them so a skip is not read as a pass.
           grep -- '--- SKIP' "$RUNNER_TEMP/go-test.log" || true
 
-  build:
-    needs: test_ruby
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - id: "auth"
-        uses: "google-github-actions/auth@v3"
-        with:
-          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
-      - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v3"
-      - name: "Use gcloud CLI"
-        run: |
-          gcloud auth list
-          gcloud info
-      - name: Authorize Docker push
-        run: gcloud auth configure-docker "${REGISTRY_HOST}"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-      - name: Cache Docker layers
-        uses: actions/cache@v6
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          target: production
-          tags: ${{ env.REGISTRY_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/web:master-${{ github.sha }} , ${{ env.REGISTRY_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/web:master
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
   build_go:
     needs: test_go
     runs-on: ubuntu-latest
@@ -137,12 +99,12 @@ jobs:
           target: go
           tags: ${{ env.REGISTRY_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/batch-go:master-${{ github.sha }} , ${{ env.REGISTRY_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/batch-go:master
 
-  # The batch that writes https://prpr-antena.com/ (migration-next), the only
-  # thing this workflow deploys. It writes the public page keys: an empty
-  # MIGRATION_NEXT_PREFIX, which the runner accepts only with
+  # The batch that writes https://prpr-antena.com/ (batch/, the Go
+  # implementation), the only thing this workflow deploys. It writes the public
+  # page keys: an empty MIGRATION_NEXT_PREFIX, which the batch accepts only with
   # MIGRATION_NEXT_ALLOW_PUBLIC=true.
-  deploy_migration_next:
-    needs: build
+  deploy_batch:
+    needs: build_go
     runs-on: ubuntu-latest
     env:
       NEXT_JOB_NAME: antena-fetch-posts-next
@@ -173,29 +135,32 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy DB-free fetch job
+      - name: Deploy the batch job
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           # --set-env-vars replaces the whole job environment; DATABASE_URL is never set.
-          # --task-timeout must stay below MigrationNext::S3RunLock::DEFAULT_STALE_AFTER_SECONDS (1h)
+          # --task-timeout must stay below the lock's stale age (1h, store.DefaultStaleAfter)
           # so a running task is killed before another execution may take its lock over.
+          # --args="" clears arguments left by an earlier command (the Ruby job had some).
           gcloud run jobs deploy "$NEXT_JOB_NAME" \
             --project="$PROJECT_ID" \
             --region="$JOB_REGION" \
-            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/web:master-${GITHUB_SHA}" \
-            --command="bundle" \
-            --args="exec,ruby,migration-next/bin/run.rb" \
+            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/batch-go:master-${GITHUB_SHA}" \
+            --command="/app/antena-batch" \
+            --args="" \
             --task-timeout=1800s \
             --max-retries=0 \
             --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID},AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY},MIGRATION_NEXT_PREFIX=${NEXT_PREFIX},MIGRATION_NEXT_ALLOW_PUBLIC=${NEXT_ALLOW_PUBLIC}"
 
           # Read the prefix back: a dropped empty value would silently fall back to migration-preview.
+          # Read the command back too: leftover arguments would be passed to the Go binary.
           actual=$(gcloud run jobs describe "$NEXT_JOB_NAME" --project="$PROJECT_ID" --region="$JOB_REGION" --format=json |
-            python3 -c 'import json, sys; env=json.load(sys.stdin)["spec"]["template"]["spec"]["template"]["spec"]["containers"][0].get("env", []); print(next((e.get("value", "") for e in env if e["name"] == "MIGRATION_NEXT_PREFIX"), "<unset>"))')
-          if [[ "$actual" != "$NEXT_PREFIX" ]]; then
-            echo "::error::$NEXT_JOB_NAME has MIGRATION_NEXT_PREFIX=$actual, expected '$NEXT_PREFIX'."
+            python3 -c 'import json, sys; c=json.load(sys.stdin)["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]; env=c.get("env", []); print(json.dumps([c.get("command", []), c.get("args", []), next((e.get("value", "") for e in env if e["name"] == "MIGRATION_NEXT_PREFIX"), "<unset>")]))')
+          expected=$(python3 -c 'import json, sys; print(json.dumps([["/app/antena-batch"], [], sys.argv[1]]))' "$NEXT_PREFIX")
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::$NEXT_JOB_NAME has [command, args, MIGRATION_NEXT_PREFIX]=$actual, expected $expected."
             exit 1
           fi
 
@@ -213,59 +178,13 @@ jobs:
             echo "::warning::$NEXT_SCHEDULER_NAME is paused; resume it by hand when the reset or emergency is over (migration-next/flow.md)."
           fi
 
-  # Shadow run of the Go port (batch/): the same job settings as the Ruby
-  # job, but on the migration-preview prefix, so it has its own state and lock
-  # (state/migration-preview/posts.json) and never touches the live site.
-  deploy_go_shadow:
-    needs: build_go
-    runs-on: ubuntu-latest
-    env:
-      GO_JOB_NAME: antena-fetch-posts-go
-      GO_SCHEDULER_NAME: antena-fetch-posts-go-scheduler-trigger
-      JOB_REGION: us-central1
-      GO_PREFIX: migration-preview
-    steps:
-      - id: "auth"
-        uses: "google-github-actions/auth@v3"
-        with:
-          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
-      - name: Deploy the Go shadow job
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: |
-          # --task-timeout must stay below the lock's stale age (1h, store.DefaultStaleAfter).
-          gcloud run jobs deploy "$GO_JOB_NAME" \
-            --project="$PROJECT_ID" \
-            --region="$JOB_REGION" \
-            --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/batch-go:master-${GITHUB_SHA}" \
-            --command="/app/antena-batch" \
-            --task-timeout=1800s \
-            --max-retries=0 \
-            --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID},AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY},MIGRATION_NEXT_PREFIX=${GO_PREFIX}"
-
-          actual=$(gcloud run jobs describe "$GO_JOB_NAME" --project="$PROJECT_ID" --region="$JOB_REGION" --format=json |
-            python3 -c 'import json, sys; env=json.load(sys.stdin)["spec"]["template"]["spec"]["template"]["spec"]["containers"][0].get("env", []); print(next((e.get("value", "") for e in env if e["name"] == "MIGRATION_NEXT_PREFIX"), "<unset>"))')
-          if [[ "$actual" != "$GO_PREFIX" ]]; then
-            echo "::error::$GO_JOB_NAME has MIGRATION_NEXT_PREFIX=$actual, expected '$GO_PREFIX'."
-            exit 1
-          fi
-      - name: Check the Go shadow schedule
-        run: |
-          # The trigger is created once by hand (migration-next/flow.md). Never resume it here.
-          if ! state=$(gcloud scheduler jobs describe "$GO_SCHEDULER_NAME" --location "$JOB_REGION" --format='value(state)'); then
-            echo "::warning::$GO_SCHEDULER_NAME could not be read (missing, or no permission)."
-          elif [[ "$state" != "ENABLED" ]]; then
-            echo "::warning::$GO_SCHEDULER_NAME is $state."
-          fi
-
   update_deployment_status:
-    needs: [create_deployment, test_ruby, build, deploy_migration_next]
+    needs: [create_deployment, build_go, deploy_batch]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Update deployment status (failure)
-        if: "needs.create_deployment.result == 'success' && needs.deploy_migration_next.result != 'success'"
+        if: "needs.create_deployment.result == 'success' && needs.deploy_batch.result != 'success'"
         uses: chrnorm/deployment-status@v2
         with:
           token: ${{ github.token }}
@@ -273,7 +192,7 @@ jobs:
           state: 'failure'
           deployment-id: ${{ needs.create_deployment.outputs.deployment_id }}
       - name: Update deployment status (success)
-        if: "needs.create_deployment.result == 'success' && needs.build.result == 'success' && needs.deploy_migration_next.result == 'success'"
+        if: "needs.create_deployment.result == 'success' && needs.build_go.result == 'success' && needs.deploy_batch.result == 'success'"
         uses: chrnorm/deployment-status@v2
         with:
           token: ${{ github.token }}

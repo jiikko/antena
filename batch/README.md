@@ -1,6 +1,6 @@
 # batch（Go の実装）
 
-https://prpr-antena.com/ を書くバッチの Go の実装。Ruby の実装（`migration-next/`）と同じ環境変数で動き、同じ S3 のファイル（記事状態・ロック）を読み書きし、同じページを書く。ファイルの形式とロックの取り方は `migration-next/state-format.md`、運用の手順は `migration-next/flow.md`。
+https://prpr-antena.com/ を書くバッチの Go の実装（2026-11-28 から本番。Cloud Run Job `antena-fetch-posts-next`）。前の Ruby の実装（`migration-next/`）と同じ環境変数で動き、同じ S3 のファイル（記事状態・ロック）を読み書きし、同じページを書く。ファイルの形式とロックの取り方は `migration-next/state-format.md`、運用の手順は `migration-next/flow.md`。
 
 ```text
 cmd/antena-batch/   起動の入口（1回の実行）

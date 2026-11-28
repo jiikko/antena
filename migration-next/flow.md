@@ -1,13 +1,13 @@
 # バッチの実行フローと運用
 
-この文書は、https://prpr-antena.com/ を書くバッチ（`migration-next`）の実行フロー、記事状態の置き場、運用の手順、Cloud SQL からの移行の経緯を説明する。
+この文書は、https://prpr-antena.com/ を書くバッチ（Go の実装 `batch/`。2026-11-28 までは Ruby の実装 `migration-next/`）の実行フロー、記事状態の置き場、運用の手順、Cloud SQL からの移行の経緯を説明する。
 
 ## 実行フロー
 
 ```text
 Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23時 JST）
   → Cloud Run Job antena-fetch-posts-next（us-central1）
-      → bundle exec ruby migration-next/bin/run.rb（Rails / DBなし）
+      → /app/antena-batch（Go の実装 batch/。DBなし）
           ├─ config/sites.yml を読む
           ├─ S3 から state/posts.json を読む
           ├─ enabledなサイトのRSSを取得・重複確認
@@ -16,20 +16,18 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
           └─ HTMLを生成し、ページ用S3の公開キーへアップロード
 ```
 
-リリースワークフロー（`.github/workflows/release.yml` の `deploy_migration_next`）が、master への push のたびにジョブのイメージと env を更新する。ジョブの prefix は空（公開キー）で、runner は `MIGRATION_NEXT_ALLOW_PUBLIC=true` が無いと空の prefix を拒否する。ワークフローはデプロイ後に env を読み返し、prefix が空であることを確かめる。
+リリースワークフロー（`.github/workflows/release.yml` の `deploy_batch`）が、master への push のたびにジョブのイメージ（`batch-go:master-<sha>`）と env を更新する。ジョブの prefix は空（公開キー）で、バッチは `MIGRATION_NEXT_ALLOW_PUBLIC=true` が無いと空の prefix を拒否する。ワークフローはデプロイ後にジョブの設定を読み返し、command が `/app/antena-batch`、args が空、prefix が空であることを確かめる。
 
 ワークフローは Scheduler の `update` だけを行い、resume しない。記事状態の作り直しや緊急時に pause したものを、push が勝手に戻さないため。pause 中なら warning を出す。
 
-## Go の実装の shadow
+## Go の実装への切り替え（2026-11-28）
 
-Go の実装（`batch/`）を、本番と並べて Cloud Run Job `antena-fetch-posts-go`（us-central1）で動かす（2026-11-28 から）。prefix は `migration-preview` で、本番には触れない。記事状態は `state/migration-preview/posts.json`、ロックは `locks/migration-preview/migration-next-run.lock`、ページは `migration-preview/` の下に置く。
+本番のジョブ `antena-fetch-posts-next` のイメージを、Ruby の実装（`web:master-<sha>`）から Go の実装（`batch-go:master-<sha>`）に替えた（ユーザー指示）。ジョブの名前・Scheduler・アラート・記事状態・ロックは同じものを使う。
 
-- リリースワークフローの `deploy_go_shadow` が、push のたびにイメージ（`batch-go:master-<sha>`）と env を更新し、prefix を読み返す。task-timeout と max-retries は本番のジョブと同じ
-- Scheduler `antena-fetch-posts-go-scheduler-trigger` は一度だけ手で作った（本番と同じ時刻・同じサービスアカウント）。ワークフローは状態を見て warning を出すだけで、resume しない
-- 始める前に `state/posts.json` を `state/migration-preview/posts.json` へコピーし、本番と同じ記事から始めた
-- shadow の間は、Ruby の実装を手で動かさない（指定しないときの prefix が同じ `migration-preview` なので、shadow と記事状態を取り合う）
-- アラート（下の節）は本番のジョブだけを見ている。shadow の失敗は鳴らない
-- 本番へ切り替えるときは、本番のジョブ `antena-fetch-posts-next` のイメージとコマンドを Go のものに替える。ジョブの名前を変えないので、Scheduler とアラートはそのまま使える。手順は state-format.md の「別の実装を本番へ入れるとき」
+- 切り替える前に、Go の実装を shadow のジョブ `antena-fetch-posts-go`（prefix `migration-preview`、本番の記事状態のコピーから開始）で 11 回、本番と同じ時刻に動かした。本番と取り込んだ記事は、取得した時刻の差で1回分ずれた回を除いて一致した。shadow のジョブとその Scheduler、`state/migration-preview/` は切り替えの後に消した
+- プログラムの部分（ログの最初の行から最後の行まで）は、Ruby の約 28 秒に対して Go は 17〜19 秒。実行全体の大半はコンテナの起動待ち（60〜90 秒）なので、ページが更新されるまでの時間はほぼ変わらない
+- Ruby の実装（`migration-next/`）は消していない。Go のテストが比べる答え（`spec/fixtures/golden/`）を作るために残している。本番では動かない
+- 戻すときは、最後の Ruby のイメージ `asia-northeast1-docker.pkg.dev/jiikko/prpr-antena/web:master-897d78f36252cd6d70c2bb143f4dc3e0e26a26a7` で `gcloud run jobs deploy antena-fetch-posts-next --image=<そのイメージ> --command=bundle --args=exec,ruby,migration-next/bin/run.rb` を打つ（region・env は今のまま。`--set-env-vars` は渡さない）。次の push で Go に戻るので、戻したままにするなら release.yml も直す
 
 ## 失敗の通知
 
