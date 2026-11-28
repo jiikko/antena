@@ -34,13 +34,15 @@ jobs:
   # The Ruby chain (test_ruby -> build -> deploy_migration_next) and the Go
   # chain (test_go -> build_go -> deploy_go_shadow) do not depend on each
   # other: a Go failure must not stop the production Ruby deploy.
+  # Tests run in the same Ruby image as production (Dockerfile: ruby:3.2.2),
+  # so the Ruby output compared here is the production one.
   test_ruby:
     runs-on: ubuntu-latest
+    container: ruby:3.2.2
     steps:
       - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+      - name: Install gems
+        run: bundle install --jobs 4
       - name: Ruby specs
         run: bundle exec rspec
 
@@ -48,13 +50,14 @@ jobs:
   # files (spec/fixtures/golden).
   test_go:
     runs-on: ubuntu-latest
+    container: ruby:3.2.2
     steps:
       - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+      - name: Install gems
+        run: bundle install --jobs 4
       - name: The Ruby oracle data is current
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           # The Go tests compare with these files; they must equal what the Ruby
           # implementation produces on Linux (the production platform) now.
           bundle exec ruby spec/fixtures/golden/images/build.rb
@@ -66,6 +69,7 @@ jobs:
           cache-dependency-path: batch/go.sum
       - name: Go tests
         working-directory: batch
+        shell: bash
         run: |
           go vet ./...
           go test -count=1 -v ./... | tee "$RUNNER_TEMP/go-test.log"
