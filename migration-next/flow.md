@@ -6,7 +6,7 @@
 
 ```text
 Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23時 JST）
-  → Cloud Run Job antena-fetch-posts-next（us-central1）
+  → Cloud Run Job antena-fetch-posts-next（asia-northeast1）
       → /app/antena-batch（Go の実装 batch/。DBなし）
           ├─ config/sites.yml を読む
           ├─ S3 から state/posts.json を読む
@@ -80,7 +80,7 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 
 ファイルが在るのに読めない（権限エラー・JSON の破損）ときは空から始めず、実行を失敗させる。既にある記事を空で上書きしないため。
 
-`state/posts.json` が壊れたら、Scheduler を pause してファイルを消し、resume する（`gcloud scheduler jobs pause|resume antena-fetch-posts-next-scheduler-trigger --location us-central1`）。次の実行が空から作り直す。
+`state/posts.json` が壊れたら、Scheduler を pause してファイルを消し、resume する（`gcloud scheduler jobs pause|resume antena-fetch-posts-next-scheduler-trigger --location asia-northeast1`）。次の実行が空から作り直す。
 
 使わなくなったキー（ページ数が減ったサイトの末尾ページ）は消さない。`sites/` の下はライフサイクルで1日後に消える。
 

@@ -109,7 +109,7 @@ jobs:
     env:
       NEXT_JOB_NAME: antena-fetch-posts-next
       NEXT_SCHEDULER_NAME: antena-fetch-posts-next-scheduler-trigger
-      JOB_REGION: us-central1
+      JOB_REGION: asia-northeast1
       NEXT_PREFIX: ""
       NEXT_ALLOW_PUBLIC: "true"
     steps:
