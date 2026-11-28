@@ -27,6 +27,7 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 - 切り替える前に、Go の実装を shadow のジョブ `antena-fetch-posts-go`（prefix `migration-preview`、本番の記事状態のコピーから開始）で 11 回、本番と同じ時刻に動かした。本番と取り込んだ記事は、取得した時刻の差で1回分ずれた回を除いて一致した。shadow のジョブとその Scheduler、`state/migration-preview/` は切り替えの後に消した
 - プログラムの部分（ログの最初の行から最後の行まで）は、Ruby の約 28 秒に対して Go は 17〜19 秒。実行全体の大半はコンテナの起動待ち（60〜90 秒）なので、ページが更新されるまでの時間はほぼ変わらない
 - 切り替えの後、RSS の取得とページのアップロードを並列にした（同時に 8 本まで）。取り込む順はサイト id の順のままなので、記事の id と重複の判定は取得が返る順に左右されない
+- 並列にした後の 11-28 19:00 の回は、起動の行から最後の行まで約 10 秒（全サイトの取得まで 6.6 秒、記事状態とページの書き込みまで 3.2 秒）、実行全体は 56 秒。起動の行は 11-28 19:00 の回から出ている（それより前のログは、最初の行が1サイト目の取得の後）
 - Ruby の実装（`migration-next/`）は消していない。Go のテストが比べる答え（`spec/fixtures/golden/`）を作るために残している。本番では動かない
 - 戻すときは、最後の Ruby のイメージ `asia-northeast1-docker.pkg.dev/jiikko/prpr-antena/web:master-897d78f36252cd6d70c2bb143f4dc3e0e26a26a7` で `gcloud run jobs deploy antena-fetch-posts-next --image=<そのイメージ> --command=bundle --args=exec,ruby,migration-next/bin/run.rb` を打つ（region・env は今のまま。`--set-env-vars` は渡さない）。次の push で Go に戻るので、戻したままにするなら release.yml も直す
 
