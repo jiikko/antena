@@ -6,9 +6,11 @@ import (
 	"testing"
 )
 
-// cases.json is the Ruby implementation's output (spec/fixtures/golden/images/build.rb).
+// testdata/images.json: bodies and the <img> tags expected from them, as the
+// former Ruby implementation (libxml2) wrote them. Edit it by hand when the
+// output is meant to change.
 func TestImageTagsMatchRuby(t *testing.T) {
-	data, err := os.ReadFile("../../../spec/fixtures/golden/images/cases.json")
+	data, err := os.ReadFile("testdata/images.json")
 	if err != nil {
 		t.Fatal(err)
 	}

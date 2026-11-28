@@ -153,8 +153,8 @@ type frame struct {
 // invalid UTF-8) ends the document. Items finished before it are kept; the
 // open item and the rest are lost, without an error. A body that cannot be
 // converted from its declared encoding gives no items (libxml2 converts it in
-// large chunks and loses what it had read). spec/fixtures/golden/feeds holds
-// Ruby's output for each of these.
+// large chunks and loses what it had read). testdata/feeds.json holds Ruby's
+// output for each of these.
 func parseItems(body []byte) []*item {
 	// Feedjira lstrips the body before parsing.
 	body = bytes.TrimLeft(body, " \t\r\n\f\v")

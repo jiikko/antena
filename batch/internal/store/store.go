@@ -1,6 +1,6 @@
 // Package store holds the S3 keys of one run (pages, post state, lock) and
 // the run lock. Keys and the lock protocol are specified in
-// migration-next/state-format.md and shared with the Ruby implementation.
+// docs/state-format.md.
 package store
 
 import (

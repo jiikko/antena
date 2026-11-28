@@ -1,6 +1,6 @@
 // Package render builds the static pages. It is a byte-for-byte port of
-// HtmlRenderer in migration-next/lib/migration_next.rb; the expected output is
-// spec/fixtures/golden/pages (render_golden_test.go).
+// the former Ruby implementation's HtmlRenderer; the expected output is
+// testdata/pages (render_golden_test.go).
 package render
 
 import (

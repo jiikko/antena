@@ -1,6 +1,6 @@
 // Command antena-batch is one run of the batch that writes
-// https://prpr-antena.com/ (the Go port of migration-next/bin/run.rb). It
-// reads the same environment variables as the Ruby runner.
+// https://prpr-antena.com/ (a port of the former Ruby runner, which read the
+// same environment variables).
 package main
 
 import (

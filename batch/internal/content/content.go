@@ -26,11 +26,10 @@ var cleanups = []*regexp.Regexp{
 // Clean returns the HTML stored as a post's content. content wins over
 // summary when both are given (nil means absent, like Ruby's nil).
 //
-// The Ruby implementation parses the result with Nokogiri and stores its
-// to_html; this keeps the cleaned markup as written and only cuts out the
+// The former Ruby implementation parsed the result with Nokogiri and stored
+// its to_html; this keeps the cleaned markup as written and only cuts out the
 // removed elements, so the bytes differ. Readers use only the <img> tags of
-// content (migration-next/state-format.md), which ImageTags reads the same
-// from both. Building a tree here (x/net/html.Parse) was not used: HTML5 tree
+// content (docs/state-format.md), which ImageTags reads the same from both. Building a tree here (x/net/html.Parse) was not used: HTML5 tree
 // construction moves images (foster parenting out of tables, <image> becomes
 // <img>) where libxml2's HTML parser does not.
 func Clean(contentHTML, summary *string) string {
@@ -160,8 +159,8 @@ func matchesRemoved(z *html.Tokenizer, hasAttr bool) bool {
 
 // ImageTags is PostRecord#only_image_tags_by_content: every <img> in document
 // order, serialized like libxml2 2.12's HTML serializer, except tags whose
-// serialization contains width="1". spec/fixtures/golden/images/cases.json
-// holds the Ruby output this must equal.
+// serialization contains width="1". testdata/images.json holds the Ruby
+// output this must equal.
 func ImageTags(doc string) string {
 	var out strings.Builder
 	collectImages(doc, &out)

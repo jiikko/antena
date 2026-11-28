@@ -49,10 +49,11 @@ func show(s *string) string {
 	return `"` + *s + `"`
 }
 
-// cases.json is the Ruby implementation's output for synthetic feeds
-// (spec/fixtures/golden/feeds/build.rb).
+// testdata/feeds.json: synthetic feeds and the entries the former Ruby
+// implementation (Feedjira) read from them. Edit it by hand when the output
+// is meant to change.
 func TestSyntheticFeedsMatchRuby(t *testing.T) {
-	data, err := os.ReadFile("../../../spec/fixtures/golden/feeds/cases.json")
+	data, err := os.ReadFile("testdata/feeds.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,8 +89,9 @@ func TestSyntheticFeedsMatchRuby(t *testing.T) {
 	}
 }
 
-// Recorded real feeds (third-party content, kept only in the Mac's tmp/;
-// spec/fixtures/golden/README.md). ANTENA_FEED_FIXTURES overrides the place.
+// Recorded real feeds and the entries the former Ruby implementation read
+// from them (third-party content, kept only in the Mac's tmp/; batch/README.md).
+// ANTENA_FEED_FIXTURES overrides the place.
 func TestRecordedFeedsMatchRuby(t *testing.T) {
 	dir := os.Getenv("ANTENA_FEED_FIXTURES")
 	if dir == "" {

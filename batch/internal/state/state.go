@@ -1,6 +1,5 @@
 // Package state reads and writes the post state (posts.json). The format is
-// specified in migration-next/state-format.md; the Ruby implementation reads
-// and writes the same file.
+// specified in docs/state-format.md.
 package state
 
 import (

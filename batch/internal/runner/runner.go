@@ -1,6 +1,6 @@
 // Package runner is one batch run: lock, read the state, fetch the feeds,
 // prune, write the state, write the pages. The steps and their order are in
-// migration-next/state-format.md ("1回の実行で記事状態にすること").
+// docs/state-format.md ("1回の実行で記事状態にすること").
 package runner
 
 import (

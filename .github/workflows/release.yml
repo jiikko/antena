@@ -31,37 +31,10 @@ jobs:
     outputs:
       deployment_id: ${{ steps.deployment.outputs.deployment_id }}
 
-  # Production runs the Go implementation (test_go -> build_go -> deploy_batch).
-  # The Ruby implementation (migration-next/) is kept as the oracle that
-  # produces the golden files the Go tests compare with; test_ruby keeps it
-  # working but does not gate the deploy.
-  test_ruby:
-    runs-on: ubuntu-latest
-    container: ruby:3.2.2
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install gems
-        run: bundle install --jobs 4
-      - name: Ruby specs
-        run: bundle exec rspec
-
-  # The Go tests compare the Go output with the Ruby implementation's golden
-  # files (spec/fixtures/golden).
   test_go:
     runs-on: ubuntu-latest
-    container: ruby:3.2.2
     steps:
       - uses: actions/checkout@v7
-      - name: Install gems
-        run: bundle install --jobs 4
-      - name: The Ruby oracle data is current
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          # The Go tests compare with these files; they must equal what the Ruby
-          # implementation produces on Linux (the production platform) now.
-          bundle exec ruby spec/fixtures/golden/images/build.rb
-          bundle exec ruby spec/fixtures/golden/feeds/build.rb
-          git diff --exit-code -- spec/fixtures/golden
       - uses: actions/setup-go@v6
         with:
           go-version-file: batch/go.mod
@@ -166,7 +139,7 @@ jobs:
 
       - name: Update migration-next schedule
         run: |
-          # The trigger is created once by hand (migration-next/flow.md); this fails if it is missing.
+          # The trigger is created once by hand (docs/flow.md); this fails if it is missing.
           gcloud scheduler jobs update http "$NEXT_SCHEDULER_NAME" \
             --schedule "*/30 8-23 * * *" \
             --time-zone "Asia/Tokyo" \
@@ -175,7 +148,7 @@ jobs:
           # emergencies, and a push must not undo that.
           state=$(gcloud scheduler jobs describe "$NEXT_SCHEDULER_NAME" --location "$JOB_REGION" --format='value(state)')
           if [[ "$state" == "PAUSED" ]]; then
-            echo "::warning::$NEXT_SCHEDULER_NAME is paused; resume it by hand when the reset or emergency is over (migration-next/flow.md)."
+            echo "::warning::$NEXT_SCHEDULER_NAME is paused; resume it by hand when the reset or emergency is over (docs/flow.md)."
           fi
 
   update_deployment_status:

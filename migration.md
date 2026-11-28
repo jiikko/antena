@@ -7,7 +7,7 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 このインスタンスには blog.jiikko.com（`lokka_production`）・pbm-cloud（`pbm_cloud_production`）・filetree-meta-manager（`filetree_meta_manager_production`）のDBもある（2026-11-27 の `gcloud sql databases list`）。antena は 2026-11-27 に切り離した。
 このドキュメントは antena 側の移行仕様・決定事項・進捗をまとめたもの。
 
-移行前後の環境と記事状態の置き場は [`migration-next/flow.md`](migration-next/flow.md) にまとめている。
+移行前後の環境と記事状態の置き場は [`docs/flow.md`](docs/flow.md) にまとめている。
 
 ## 移行前の構成（確認済みの事実。Rails のコードと GCP の旧資源は 2026-11-27 に撤去済み）
 
@@ -30,7 +30,7 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
    - category は slug で参照し、**slug の変更も禁止**（既存 URL が壊れるため）
    - name / rss_url は YAML に明示する。現行の Site 作成コールバック（RSS URL と名前を HTTP で自動取得する処理）は使わない
 3. **posts の状態は S3 上の JSON ファイルで保持する**（SQL は使わない）
-   - バッチ開始時に S3 からダウンロードし、終了時に S3 へアップロードし直す。キーは `s3://prpr-antena/state/posts.json`（ページと同じバケット）。本文を含むので、バケットポリシーで CloudFront からの読み取りを拒否し、ライフサイクルの削除対象から外してある（`migration-next/flow.md`「記事状態の置き場」）
+   - バッチ開始時に S3 からダウンロードし、終了時に S3 へアップロードし直す。キーは `s3://prpr-antena/state/posts.json`（ページと同じバケット）。本文を含むので、バケットポリシーで CloudFront からの読み取りを拒否し、ライフサイクルの削除対象から外してある（`docs/flow.md`「記事状態の置き場」）
    - 1件のフィールド: `site_id` / `title` / `url` / `summary` / `content` / `published_at` / `created_at`
    - posts に対して必要な処理は、重複チェック（URL / タイトル）、間引き（5日 / サイトあたり50件）、表示用の絞り込みと並び替えのみ。全件メモリに読み込んで処理してよい
    - バージョニングは使わない（2026-11-26 ユーザー判断）。破損時はファイルを消せば、次のバッチが空から作り直す
@@ -53,9 +53,9 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 
 ### タスク2: DB なしバッチの実装（完了。2026-11-26〜27 に shadow で確認）
 
-- 旧ジョブとは別の Cloud Run Job `antena-fetch-posts-next` として並走させ、`MIGRATION_NEXT_MODE`（repository variable）で preview と public を切り替える。手順は `migration-next/flow.md`
+- 旧ジョブとは別の Cloud Run Job `antena-fetch-posts-next` として並走させ、`MIGRATION_NEXT_MODE`（repository variable）で preview と public を切り替える。手順は `docs/flow.md`
 
-- `migration-next/` にDBなしrunner、記事状態のJSONストア、フィード取得、静的HTML生成を実装した
+- `migration-next/` にDBなしrunner、記事状態のJSONストア、フィード取得、静的HTML生成を実装した（Ruby。2026-11-28 に Go の `batch/` へ置き換えて削除）
 - バッチ開始時に `config/sites.yml` を読み込み、Site / Category を DB ではなく YAML 由来のデータで扱う
 - posts は S3 の JSON 状態ファイルから読み込み、fetch・重複チェック・間引き・HTML 生成を行い、終了時に S3 へ保存し直す
 - `Site.fetch` のフィード取得と本文掃除（正規表現群）の挙動は現行と変えない
@@ -82,7 +82,7 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 
 ### タスク5: その後
 
-- Go への書き換え（2026-11-28 に着手、ユーザー指示）: `batch/` に実装し、Ruby の実装と同じ出力になることを答えと比べて確かめた（`batch/README.md`）。shadow のジョブで本番と並べて動かしてから、2026-11-28 に本番のジョブのイメージを Go に替えた（ユーザー指示。`migration-next/flow.md`「Go の実装への切り替え」）。Ruby の実装は答えを作るために残している
+- Go への書き換え（2026-11-28 に着手、ユーザー指示）: `batch/` に実装し、Ruby の実装と同じ出力になることを答えと比べて確かめた（`batch/README.md`）。shadow のジョブで本番と並べて動かしてから、2026-11-28 に本番のジョブのイメージを Go に替えた（ユーザー指示。`docs/flow.md`「Go の実装への切り替え」）。Ruby の実装は答えを作るために残している
 - 今の Ruby の実装の基準値。2026-11-26 21:49〜11-27 23:00 JST の 38 回の実行（失敗 0）を、Cloud Run の実行履歴・ジョブのログ・Monitoring から集計した。Go と比べるときは同じ取り方で測る
   | 項目 | 本番 10 回（11-27 19:06 以降） | shadow 26 回（初回の2回を除く） |
   | --- | --- | --- |
@@ -94,7 +94,7 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
   - 記事状態: 539 件、`state/posts.json` は 2.5 MB（11-27 23:02）。記事が50件を超えて間引きが始まるまでは増え続ける
   - メモリ: 上限 512 MiB のうち、Monitoring の `container/memory/utilizations` の平均の最大で 17%（約 87 MiB）。1分ごとの値なので、短い山は入らない
   - 実行の長さとプログラムのログの長さの差（約 20〜100 秒）は、主にコンテナの起動。本番の 76 秒（23:00）は原因を確かめていない
-- 別の実装（Go など）は、本番と別の prefix で並べて動かしてから切り替える。記事状態とロックの形式と手順は `migration-next/state-format.md`
+- 別の実装（Go など）は、本番と別の prefix で並べて動かしてから切り替える。記事状態とロックの形式と手順は `docs/state-format.md`
 
 ## 制約
 

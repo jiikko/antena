@@ -22,9 +22,9 @@ import (
 // concurrently.
 const DefaultStaleAfter = time.Hour
 
-// Lock is the run lock in state-format.md ("ロック"). Its protocol is the
-// same as S3RunLock in the Ruby implementation, so the two exclude each other
-// when they share a prefix.
+// Lock is the run lock in docs/state-format.md ("ロック"). Any other
+// implementation that follows that protocol excludes this one when they share
+// a prefix.
 type Lock struct {
 	store      *Store
 	warn       func(string)

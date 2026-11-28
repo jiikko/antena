@@ -12,10 +12,12 @@ import (
 	"github.com/jiikko/antena/batch/internal/state"
 )
 
-const golden = "../../../spec/fixtures/golden"
+// testdata/: a fixed input and the pages expected from it. The pages were
+// first produced by the former Ruby implementation, and the Go port was made
+// to match them byte for byte. UPDATE_GOLDEN=1 rewrites them from the Go
+// output; use it only when the output is meant to change, and read the diff.
+const golden = "testdata"
 
-// The pages for the fixed golden input must equal the Ruby implementation's
-// output byte for byte (spec/fixtures/golden/README.md).
 func TestGoldenPages(t *testing.T) {
 	// pages/: live keys; pages-preview/: links under /migration-preview and noindex.
 	for prefix, sub := range map[string]string{"": "pages", "migration-preview": "pages-preview"} {
@@ -44,6 +46,13 @@ func checkGolden(t *testing.T, prefix, sub string) {
 	for i := range keys {
 		if keys[i] != want[i] {
 			t.Fatalf("page keys = %v, want %v", keys, want)
+		}
+	}
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		for key, file := range manifest {
+			if err := os.WriteFile(filepath.Join(golden, sub, file), []byte(pages[key]), 0o644); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	for key, file := range manifest {
@@ -85,18 +94,6 @@ func renderGolden(t *testing.T, prefix string) map[string]string {
 		t.Fatal(err)
 	}
 	return pages
-}
-
-// The Ruby implementation reads migration-next/templates/style.html; the copy
-// embedded here must stay the same while both exist.
-func TestStyleMatchesRubyTemplate(t *testing.T) {
-	ruby, err := os.ReadFile("../../../migration-next/templates/style.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(ruby) != style {
-		t.Fatal("batch/internal/render/style.html differs from migration-next/templates/style.html")
-	}
 }
 
 func readJSON(t *testing.T, path string, v any) {
