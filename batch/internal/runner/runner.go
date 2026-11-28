@@ -10,7 +10,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/jiikko/antena/batch/internal/catalog"
@@ -78,10 +80,10 @@ func (r *Runner) Execute(ctx context.Context) error {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	for _, k := range keys {
-		if err := r.Store.Write(ctx, r.Store.Key(k), []byte(pages[k]), "text/html; charset=utf-8"); err != nil {
-			return err
-		}
+	if err := firstError(inParallel(len(keys), func(i int) error {
+		return r.Store.Write(ctx, r.Store.Key(keys[i]), []byte(pages[keys[i]]), "text/html; charset=utf-8")
+	})); err != nil {
+		return err
 	}
 	fmt.Fprintf(r.Log, "migration-next uploaded %d pages under s3://%s/%s/ and %d posts to s3://%s/%s\n",
 		len(pages), r.Store.Bucket, r.Store.Prefix, len(st.Posts), r.Store.Bucket, r.Store.StateKey())
@@ -118,21 +120,31 @@ func (r *Runner) fetchNewPosts(ctx context.Context, st *state.State, cat *catalo
 	// Sites in id order: ids are given in this order, and pages sort by id.
 	sites := cat.EnabledSites()
 	sort.SliceStable(sites, func(i, j int) bool { return sites[i].ID < sites[j].ID })
-	for _, site := range sites {
+	// Feeds are fetched concurrently, but their entries are taken in the site
+	// order above: which post wins a duplicate title and which id each post
+	// gets must not depend on which feed answered first.
+	entries := make([][]feed.Entry, len(sites))
+	errs := inParallel(len(sites), func(i int) error {
+		if sites[i].RSSURL == "" {
+			return nil
+		}
+		body, err := r.Fetch(ctx, sites[i].RSSURL)
+		if err != nil {
+			return err
+		}
+		entries[i], err = feed.Parse(body, r.Now())
+		return err
+	})
+	for i, site := range sites {
 		if site.RSSURL == "" {
 			continue
 		}
-		body, err := r.Fetch(ctx, site.RSSURL)
-		var entries []feed.Entry
-		if err == nil {
-			entries, err = feed.Parse(body, r.Now())
-		}
-		if err != nil {
+		if err := errs[i]; err != nil {
 			r.warn(fmt.Sprintf("WARN %s (site_id=%d): feed error %T: %v", site.Name, site.ID, err, err))
 			continue
 		}
 		inserted := 0
-		for _, e := range entries {
+		for _, e := range entries[i] {
 			if urls[e.URL] || (e.Title != nil && titles[*e.Title]) {
 				continue
 			}
@@ -151,6 +163,49 @@ func (r *Runner) fetchNewPosts(ctx context.Context, st *state.State, cat *catalo
 		}
 		fmt.Fprintf(r.Log, "%s: +%d\n", site.Name, inserted)
 	}
+}
+
+// maxParallel bounds concurrent feed fetches and page uploads. With
+// maxFeedBytes it also bounds the feed bodies held at once (8 x 16 MiB
+// against the job's 512 MiB).
+const maxParallel = 8
+
+// inParallel runs fn(0..n-1) with at most maxParallel at a time and returns
+// each call's error by index. Every call runs even after one fails, as the
+// sequential loop it replaced would not have, so fn must be safe to run after
+// another call's failure.
+//
+// A panic in fn becomes that index's error: a panic in a goroutine would end
+// the process without running the caller's defers, which release the S3 lock
+// (Execute), and the lock would block every run for an hour.
+func inParallel(n int, fn func(i int) error) []error {
+	errs := make([]error, n)
+	sem := make(chan struct{}, maxParallel)
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer func() { <-sem; wg.Done() }()
+			defer func() {
+				if p := recover(); p != nil {
+					errs[i] = fmt.Errorf("panic: %v\n%s", p, debug.Stack())
+				}
+			}()
+			errs[i] = fn(i)
+		}()
+	}
+	wg.Wait()
+	return errs
+}
+
+func firstError(errs []error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // prune drops, for each site with more than 50 posts (disabled sites
@@ -200,6 +255,23 @@ func HTTPFetch() func(ctx context.Context, url string) ([]byte, error) {
 			return nil, err
 		}
 		defer resp.Body.Close()
-		return io.ReadAll(io.LimitReader(resp.Body, 64<<20))
+		return readFeedBody(resp.Body, url)
 	}
+}
+
+// maxFeedBytes is far above the largest feed seen (about 0.3 MB in 2026-11);
+// it bounds memory, see maxParallel.
+const maxFeedBytes = 16 << 20
+
+// readFeedBody fails on a body over maxFeedBytes instead of truncating it:
+// a truncated feed still parses up to the cut and would add part of its items.
+func readFeedBody(body io.Reader, url string) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, maxFeedBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxFeedBytes {
+		return nil, fmt.Errorf("feed body of %s is over %d bytes", url, maxFeedBytes)
+	}
+	return data, nil
 }

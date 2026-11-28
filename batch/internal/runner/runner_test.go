@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -47,6 +48,8 @@ type env struct {
 	log   bytes.Buffer
 	err   bytes.Buffer
 	sites string
+	// beforeFetch, when set, runs at the start of every fetch (concurrently).
+	beforeFetch func(url string)
 }
 
 func newEnv(t *testing.T) *env {
@@ -68,6 +71,9 @@ func (e *env) run(prefix string) error {
 	}
 	r := &Runner{Store: st, SitesFile: e.sites, Now: func() time.Time { return e.now }, Log: &e.log, Err: &e.err,
 		Fetch: func(_ context.Context, url string) ([]byte, error) {
+			if e.beforeFetch != nil {
+				e.beforeFetch(url)
+			}
 			if body, ok := e.feeds[url]; ok {
 				return body, nil
 			}
@@ -130,6 +136,162 @@ func TestRunWritesLiveKeysAndDedupsAcrossRuns(t *testing.T) {
 	posts = e.posts("state/posts.json")
 	if len(posts) != 4 || posts[3].ID != 4 || posts[3].URLString() != "https://one.example/new" {
 		t.Fatalf("second run: %d posts, last %+v", len(posts), posts[len(posts)-1])
+	}
+}
+
+// The feeds are fetched concurrently: each fetch waits until both enabled
+// sites' fetches have started. In a sequential loop the first fetch waits
+// out the hang guard alone and the test fails.
+func TestRunFetchesFeedsConcurrently(t *testing.T) {
+	e := newEnv(t)
+	e.feeds["https://one.example/rss"] = rss(item("a", "https://one.example/a"))
+	e.feeds["https://two.example/rss"] = rss(item("c", "https://two.example/c"))
+	var started sync.WaitGroup
+	started.Add(2)
+	e.beforeFetch = func(string) {
+		started.Done()
+		done := make(chan struct{})
+		go func() { started.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second): // hang guard only; the barrier is the check
+			t.Error("the other feed's fetch never started while this one was running")
+		}
+	}
+	if err := e.run(""); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.posts("state/posts.json")); n != 2 {
+		t.Fatalf("%d posts, want 2; stderr: %s", n, e.err.String())
+	}
+}
+
+// Entries are taken in site id order whichever feed answers first: site 1's
+// fetch returns only after site 2's has returned, and site 1 still gets the
+// first ids and wins the duplicate title.
+func TestRunTakesEntriesInSiteOrderWhateverAnswersFirst(t *testing.T) {
+	e := newEnv(t)
+	e.feeds["https://one.example/rss"] = rss(item("a", "https://one.example/a"))
+	e.feeds["https://two.example/rss"] = rss(item("a", "https://two.example/same-title"), item("c", "https://two.example/c"))
+	twoReturned := make(chan struct{})
+	e.beforeFetch = func(url string) {
+		switch url {
+		case "https://two.example/rss":
+			// Fetch returns right after this; close as late as the hook can.
+			defer close(twoReturned)
+		case "https://one.example/rss":
+			select {
+			case <-twoReturned:
+			case <-time.After(10 * time.Second): // hang guard only
+				t.Error("site 2's fetch never ran while site 1's was waiting")
+			}
+		}
+	}
+	if err := e.run(""); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, p := range e.posts("state/posts.json") {
+		got = append(got, fmt.Sprintf("%d:%d:%s", p.ID, p.SiteID, p.URLString()))
+	}
+	want := []string{"1:1:https://one.example/a", "2:2:https://two.example/c"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("posts = %v, want %v", got, want)
+	}
+	if !strings.Contains(e.log.String(), "one: +1\ntwo: +1\n") {
+		t.Fatalf("log not in site order: %s", e.log.String())
+	}
+}
+
+// inParallel runs calls at once: every call waits until all 4 have started.
+// (Execute also uploads pages through it; that is only checked by reading:
+// a sequential upload gives the same result, only slower.) The count is fixed, not maxParallel, so a
+// lowered maxParallel fails here instead of shrinking the test with it.
+func TestInParallelRunsCallsConcurrently(t *testing.T) {
+	const n = 4
+	var started sync.WaitGroup
+	started.Add(n)
+	all := make(chan struct{})
+	go func() { started.Wait(); close(all) }()
+	errs := inParallel(n, func(int) error {
+		started.Done()
+		select {
+		case <-all:
+			return nil
+		case <-time.After(10 * time.Second): // hang guard only
+			return errors.New("the other calls never started")
+		}
+	})
+	if err := firstError(errs); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Errors come back by index, whichever call finishes first; firstError picks
+// the lowest index. A panic becomes that index's error instead of ending the
+// process (which would skip the lock release in Execute).
+func TestInParallelReturnsErrorsByIndexAndRecoversPanics(t *testing.T) {
+	lowDone := make(chan struct{})
+	errs := inParallel(4, func(i int) error {
+		switch i {
+		case 1:
+			// Finish after index 3 has failed.
+			select {
+			case <-lowDone:
+				return errors.New("low")
+			case <-time.After(10 * time.Second): // hang guard only
+				return errors.New("index 3 never ran while index 1 was waiting")
+			}
+		case 2:
+			panic("boom")
+		case 3:
+			defer close(lowDone)
+			return errors.New("high")
+		}
+		return nil
+	})
+	if errs[0] != nil || errs[1] == nil || errs[1].Error() != "low" || errs[3] == nil || errs[3].Error() != "high" {
+		t.Fatalf("errs = %v", errs)
+	}
+	if errs[2] == nil || !strings.HasPrefix(errs[2].Error(), "panic: boom") {
+		t.Fatalf("panic not recovered as an error: %v", errs[2])
+	}
+	if err := firstError(errs); err == nil || err.Error() != "low" {
+		t.Fatalf("firstError = %v, want low", err)
+	}
+}
+
+// A body over maxFeedBytes is an error, never a truncated feed.
+func TestReadFeedBodyRefusesOversizedBodies(t *testing.T) {
+	if got, err := readFeedBody(strings.NewReader(strings.Repeat("x", maxFeedBytes)), "u"); err != nil || len(got) != maxFeedBytes {
+		t.Fatalf("at the limit: %d bytes, %v", len(got), err)
+	}
+	if got, err := readFeedBody(strings.NewReader(strings.Repeat("x", maxFeedBytes+1)), "u"); err == nil {
+		t.Fatalf("over the limit: %d bytes, no error", len(got))
+	}
+}
+
+// A feed whose parsing panics is skipped with a WARN; the run finishes and
+// releases its lock.
+func TestRunSurvivesAPanickingFetch(t *testing.T) {
+	e := newEnv(t)
+	e.feeds["https://two.example/rss"] = rss(item("c", "https://two.example/c"))
+	e.beforeFetch = func(url string) {
+		if url == "https://one.example/rss" {
+			panic("broken feed")
+		}
+	}
+	if err := e.run(""); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(e.err.String(), "WARN one (site_id=1): feed error") || !strings.Contains(e.err.String(), "panic: broken feed") {
+		t.Fatal(e.err.String())
+	}
+	if n := len(e.posts("state/posts.json")); n != 1 {
+		t.Fatalf("%d posts, want 1", n)
+	}
+	if _, ok := e.fake.Object("locks/migration-next-run.lock"); ok {
+		t.Error("lock not released")
 	}
 }
 
