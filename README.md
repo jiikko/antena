@@ -29,4 +29,4 @@
 
 ## テスト
 
-- `cd batch && go test ./...`
+- `cd src && go test ./...`
