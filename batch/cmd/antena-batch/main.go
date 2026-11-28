@@ -18,7 +18,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "migration-next failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "antena failed: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -38,7 +38,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	sites, ok := os.LookupEnv("MIGRATION_NEXT_SITES_FILE")
+	sites, ok := os.LookupEnv("ANTENA_SITES_FILE")
 	if !ok {
 		sites = "config/sites.yml"
 	}

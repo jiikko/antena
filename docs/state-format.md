@@ -4,12 +4,12 @@
 
 ## キー
 
-バケットは `prpr-antena`。キーは `batch/internal/store` の `StateKey` と `LockKey` が `MIGRATION_NEXT_PREFIX`（ページの prefix）から決める。
+バケットは `prpr-antena`。キーは `batch/internal/store` の `StateKey` と `LockKey` が `ANTENA_PREFIX`（ページの prefix）から決める。
 
 | prefix | 記事状態 | ロック | ページ |
 | --- | --- | --- | --- |
-| 空（本番） | `state/posts.json` | `locks/migration-next-run.lock` | `index.html` など |
-| `<p>`（shadow） | `state/<p>/posts.json` | `locks/<p>/migration-next-run.lock` | `<p>/index.html` など |
+| 空（本番） | `state/posts.json` | `locks/antena-run.lock` | `index.html` など |
+| `<p>`（shadow） | `state/<p>/posts.json` | `locks/<p>/antena-run.lock` | `<p>/index.html` など |
 
 - prefix の前後の `/` は落とす。指定しないときの prefix は `migration-preview`
 - prefix が違えば、記事状態とロックは別のものになる。shadow の実行は本番の記事状態を読まず、書かず、本番とロックを取り合わない
@@ -83,7 +83,7 @@ UTF-8 の JSON。書くときは次の形にする。
 2. 409・412 なら今のロックを読む。それ以外の失敗（権限エラー・通信の失敗など）では実行を失敗にする。`token` が自分のものなら取れた（応答が失われた PUT を SDK が送り直した場合）
 3. 409 だったとき、またはロックが読む前に消えていたときは、2回まで 1 からやり直す
 4. `started_at` から1時間（`store.DefaultStaleAfter`）を過ぎていれば、止められた実行の残したロックとみなして奪う。奪うときは、読んだときの ETag を `If-Match` に付けて PUT し直す。ETag が読めなかったときは奪わない。`started_at` が読めないもの、中身が JSON のオブジェクトでないものも、過ぎたものとして扱う。奪う PUT が 404・409・412 なら別の実行が先に奪ったので、読み直す
-5. 奪えなかったとき、まだ1時間たっていないときは、WARN（`migration-next skipped`）を出して何も書かずに終える
+5. 奪えなかったとき、まだ1時間たっていないときは、WARN（`antena skipped`）を出して何も書かずに終える
 
 消し方: 読んだロックの `token` が自分のものなら消す。自分のものでなければ（奪われていれば）消さない。
 

@@ -36,7 +36,7 @@ func (r *Runner) warn(msg string) { fmt.Fprintln(r.Err, msg) }
 func (r *Runner) Execute(ctx context.Context) error {
 	// The other progress lines come only after the first feed is fetched; this
 	// one marks the start, so the run's own time can be read from the log.
-	fmt.Fprintf(r.Log, "migration-next started: pages under s3://%s/%s/, state s3://%s/%s\n",
+	fmt.Fprintf(r.Log, "antena started: pages under s3://%s/%s/, state s3://%s/%s\n",
 		r.Store.Bucket, r.Store.Prefix, r.Store.Bucket, r.Store.StateKey())
 	lock := store.NewLock(r.Store, r.warn, store.DefaultStaleAfter, r.Now)
 	ok, err := lock.Acquire(ctx)
@@ -89,7 +89,7 @@ func (r *Runner) Execute(ctx context.Context) error {
 	})); err != nil {
 		return err
 	}
-	fmt.Fprintf(r.Log, "migration-next uploaded %d pages under s3://%s/%s/ and %d posts to s3://%s/%s\n",
+	fmt.Fprintf(r.Log, "antena uploaded %d pages under s3://%s/%s/ and %d posts to s3://%s/%s\n",
 		len(pages), r.Store.Bucket, r.Store.Prefix, len(st.Posts), r.Store.Bucket, r.Store.StateKey())
 	return nil
 }
@@ -103,7 +103,7 @@ func (r *Runner) loadState(ctx context.Context) (*state.State, error) {
 		return nil, err
 	}
 	if data == nil {
-		r.warn(fmt.Sprintf("WARN migration-next: s3://%s/%s does not exist; starting from an empty post set", r.Store.Bucket, r.Store.StateKey()))
+		r.warn(fmt.Sprintf("WARN antena: s3://%s/%s does not exist; starting from an empty post set", r.Store.Bucket, r.Store.StateKey()))
 		return &state.State{}, nil
 	}
 	return state.Load(data)

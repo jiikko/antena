@@ -16,7 +16,7 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
           └─ HTMLを生成し、ページ用S3の公開キーへアップロード（並列）
 ```
 
-リリースワークフロー（`.github/workflows/release.yml` の `deploy_batch`）が、master への push のたびにジョブのイメージ（`batch-go:master-<sha>`）と env を更新する。ジョブの prefix は空（公開キー）で、バッチは `MIGRATION_NEXT_ALLOW_PUBLIC=true` が無いと空の prefix を拒否する。ワークフローはデプロイ後にジョブの設定を読み返し、command が `/app/antena-batch`、args が空、prefix が空であることを確かめる。
+リリースワークフロー（`.github/workflows/release.yml` の `deploy_batch`）が、master への push のたびにジョブのイメージ（`batch-go:master-<sha>`）と env を更新する。ジョブの prefix は空（公開キー）で、バッチは `ANTENA_ALLOW_PUBLIC=true` が無いと空の prefix を拒否する。ワークフローはデプロイ後にジョブの設定を読み返し、command が `/app/antena-batch`、args が空、prefix が空であることを確かめる。
 
 ワークフローは Scheduler の `update` だけを行い、resume しない。記事状態の作り直しや緊急時に pause したものを、push が勝手に戻さないため。pause 中なら warning を出す。
 
@@ -30,7 +30,7 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 - 並列にした後の 11-28 19:00 の回は、起動の行から最後の行まで約 10 秒（全サイトの取得まで 6.6 秒、記事状態とページの書き込みまで 3.2 秒）、実行全体は 56 秒。起動の行は 11-28 19:00 の回から出ている（それより前のログは、最初の行が1サイト目の取得の後）
 - 11-28 19:20 にジョブと Scheduler を us-central1 から asia-northeast1 へ移した（ユーザー指示）。us-central1 は 2023-05 の旧 Rails のジョブから引き継いだもので、理由は記録に無い。イメージ・S3・フィードはどれも日本にある。移した後の2回（手動 19:23、定期 19:30）は、実行全体が 9.5 秒と 14.4 秒、起動の行から最後の行までが 4.2 秒と 4.4 秒（us-central1 では全体 56〜123 秒、プログラム約 10 秒）。回数が少ないので、何回か見てから値を直す
 - Ruby の実装（`migration-next/`・`spec/`・`Gemfile`）は、切り替えた日のうちに repo から消した（ユーザー指示）。コードは commit `bcbfaff` まで残っている。Go のテストが比べる答えは、Ruby が作ったものを `batch/internal/*/testdata/` に移して使い続けている
-- 戻すときは、最後の Ruby のイメージ `asia-northeast1-docker.pkg.dev/jiikko/prpr-antena/web:master-897d78f36252cd6d70c2bb143f4dc3e0e26a26a7` で `gcloud run jobs deploy antena-fetch-posts-next --image=<そのイメージ> --command=bundle --args=exec,ruby,migration-next/bin/run.rb` を打つ（region・env は今のまま。`--set-env-vars` は渡さない）。次の push で Go に戻るので、戻したままにするなら release.yml も直す（Ruby のイメージにはコードが入っているので、repo から消した後もこの手順で動く）
+- 戻すときは、最後の Ruby のイメージ `asia-northeast1-docker.pkg.dev/jiikko/prpr-antena/web:master-897d78f36252cd6d70c2bb143f4dc3e0e26a26a7` で `gcloud run jobs deploy antena-fetch-posts-next --image=<そのイメージ> --command=bundle --args=exec,ruby,migration-next/bin/run.rb` に `--update-env-vars=MIGRATION_NEXT_PREFIX=,MIGRATION_NEXT_ALLOW_PUBLIC=true` を付けて打つ（region は今のまま。Ruby は 11-28 に改名する前の名前の環境変数とロックのキー `locks/migration-next-run.lock` を使う。AWS の鍵はジョブに残っているので `--set-env-vars` は渡さない。Go と同時に動かすとロックで排他されないので、Go のジョブを置き換える形でだけ使う）。次の push で Go に戻るので、戻したままにするなら release.yml も直す（Ruby のイメージにはコードが入っているので、repo から消した後もこの手順で動く）
 
 ## 失敗の通知
 
@@ -54,9 +54,9 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 | キー | 内容 |
 | --- | --- |
 | `state/posts.json` | 全記事の状態。無ければ実行が空から作り（「記事状態の始まりと作り直し」）、以後は読み書きする |
-| `locks/migration-next-run.lock` | 多重起動を防ぐ一時ロック。バッチ開始時に作成し、終了時に削除する |
+| `locks/antena-run.lock` | 多重起動を防ぐ一時ロック。バッチ開始時に作成し、終了時に削除する |
 
-これは本番（prefix が空）のキー。prefix を付けた実行（`migration-preview` や、別の実装の shadow）は `state/<prefix>/posts.json` と `locks/<prefix>/migration-next-run.lock` を使い、本番の記事状態に触れない。中身の形式とロックの取り方、別の実装を並べて動かす手順は `state-format.md` にある。
+これは本番（prefix が空）のキー。prefix を付けた実行（`migration-preview` や、別の実装の shadow）は `state/<prefix>/posts.json` と `locks/<prefix>/antena-run.lock` を使い、本番の記事状態に触れない。中身の形式とロックの取り方、別の実装を並べて動かす手順は `state-format.md` にある。
 
 同じバケットに置くために、`prpr-antena` に次の設定を入れてある（2026-11-26 に適用）。
 
@@ -97,6 +97,6 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 | --- | --- |
 | 2026-11-26 | 新ジョブを shadow で動かし始めた（`migration-preview/` に書く）。Cloud SQL の記事は引き継がず、空から始めた（ユーザー判断） |
 | 2026-11-27 19:02〜19:10 | 切り替え。新ジョブが公開キーを書き、旧ジョブの Scheduler を止めた |
-| 2026-11-27 | Rails のコードを repo から削除し、続けて GCP の旧資源を撤去した（ユーザー判断で、予定していた1週間の様子見を短縮）: 旧ジョブ2本とその Scheduler、Cloud Run サービス `prpr-antena`、DB `antena_production`、GitHub の secrets `DATABASE_URL` / `SECRET_KEY_BASE` / `RAILS_MASTER_KEY`、repository variable `MIGRATION_NEXT_MODE` |
+| 2026-11-27 | Rails のコードを repo から削除し、続けて GCP の旧資源を撤去した（ユーザー判断で、予定していた1週間の様子見を短縮）: 旧ジョブ2本とその Scheduler、Cloud Run サービス `prpr-antena`、DB `antena_production`、GitHub の secrets `DATABASE_URL` / `SECRET_KEY_BASE` / `RAILS_MASTER_KEY`、repository variable `ANTENA_MODE` |
 
 Rails のバッチへ戻す手段はもう無い。`antena_production` を消した後、`hoby-db` のインスタンスもバックアップごと削除した（2026-11-27、ユーザー判断）ので、移行前の記事データはどこにも残っていない。

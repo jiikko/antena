@@ -31,20 +31,20 @@ type Store struct {
 
 var slashes = regexp.MustCompile(`\A/+|/+\z`)
 
-// FromEnv reads MIGRATION_NEXT_BUCKET and MIGRATION_NEXT_PREFIX. An empty
-// prefix writes the live site and needs MIGRATION_NEXT_ALLOW_PUBLIC=true.
+// FromEnv reads ANTENA_BUCKET and ANTENA_PREFIX. An empty
+// prefix writes the live site and needs ANTENA_ALLOW_PUBLIC=true.
 func FromEnv(getenv func(string) string, lookup func(string) (string, bool), client API) (*Store, error) {
-	bucket, ok := lookup("MIGRATION_NEXT_BUCKET")
+	bucket, ok := lookup("ANTENA_BUCKET")
 	if !ok {
 		bucket = "prpr-antena"
 	}
-	prefix, ok := lookup("MIGRATION_NEXT_PREFIX")
+	prefix, ok := lookup("ANTENA_PREFIX")
 	if !ok {
 		prefix = "migration-preview"
 	}
 	prefix = slashes.ReplaceAllString(prefix, "")
-	if prefix == "" && getenv("MIGRATION_NEXT_ALLOW_PUBLIC") != "true" {
-		return nil, errors.New("refusing to write public S3 keys; set MIGRATION_NEXT_ALLOW_PUBLIC=true only for cutover")
+	if prefix == "" && getenv("ANTENA_ALLOW_PUBLIC") != "true" {
+		return nil, errors.New("refusing to write public S3 keys; set ANTENA_ALLOW_PUBLIC=true only for cutover")
 	}
 	return &Store{Client: client, Bucket: bucket, Prefix: prefix}, nil
 }
@@ -57,7 +57,7 @@ func (s *Store) Key(relative string) string {
 // state/ and locks/ stay at the top so the bucket policy Deny on state/* and
 // locks/* covers them; a non-empty prefix goes below them.
 func (s *Store) StateKey() string { return join("state", s.Prefix, "posts.json") }
-func (s *Store) LockKey() string  { return join("locks", s.Prefix, "migration-next-run.lock") }
+func (s *Store) LockKey() string  { return join("locks", s.Prefix, "antena-run.lock") }
 
 func join(parts ...string) string {
 	var kept []string

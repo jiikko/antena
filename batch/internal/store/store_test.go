@@ -22,9 +22,9 @@ func TestKeys(t *testing.T) {
 		env               map[string]string
 		state, lock, page string
 	}{
-		{map[string]string{"MIGRATION_NEXT_PREFIX": "", "MIGRATION_NEXT_ALLOW_PUBLIC": "true"}, "state/posts.json", "locks/migration-next-run.lock", "index.html"},
-		{map[string]string{"MIGRATION_NEXT_PREFIX": "/go-preview/"}, "state/go-preview/posts.json", "locks/go-preview/migration-next-run.lock", "go-preview/index.html"},
-		{map[string]string{}, "state/migration-preview/posts.json", "locks/migration-preview/migration-next-run.lock", "migration-preview/index.html"},
+		{map[string]string{"ANTENA_PREFIX": "", "ANTENA_ALLOW_PUBLIC": "true"}, "state/posts.json", "locks/antena-run.lock", "index.html"},
+		{map[string]string{"ANTENA_PREFIX": "/go-preview/"}, "state/go-preview/posts.json", "locks/go-preview/antena-run.lock", "go-preview/index.html"},
+		{map[string]string{}, "state/migration-preview/posts.json", "locks/migration-preview/antena-run.lock", "migration-preview/index.html"},
 	}
 	for _, c := range cases {
 		get, look := env(c.env)
@@ -40,7 +40,7 @@ func TestKeys(t *testing.T) {
 
 func TestEmptyPrefixNeedsAllowPublic(t *testing.T) {
 	for _, p := range []string{"", "/", "//"} {
-		get, look := env(map[string]string{"MIGRATION_NEXT_PREFIX": p})
+		get, look := env(map[string]string{"ANTENA_PREFIX": p})
 		if _, err := FromEnv(get, look, nil); err == nil || !strings.Contains(err.Error(), "refusing to write public S3 keys") {
 			t.Errorf("prefix %q: err = %v", p, err)
 		}
@@ -108,7 +108,7 @@ func TestLockSkipsWhileFreshLockIsHeld(t *testing.T) {
 	if !e.acquire(e.at(0)) || e.acquire(e.at(time.Minute)) {
 		t.Fatal("want first true, second false")
 	}
-	if !strings.Contains(e.warns.String(), "WARN migration-next skipped") {
+	if !strings.Contains(e.warns.String(), "WARN antena skipped") {
 		t.Fatal(e.warns.String())
 	}
 }
@@ -121,7 +121,7 @@ func TestLockTakesOverStaleLock(t *testing.T) {
 	if got := e.ownerStartedAt(); got != "2026-11-26T01:00:01.000000Z" {
 		t.Fatal(got)
 	}
-	if !strings.Contains(e.warns.String(), "WARN migration-next took over a stale S3 lock") {
+	if !strings.Contains(e.warns.String(), "WARN antena took over a stale S3 lock") {
 		t.Fatal(e.warns.String())
 	}
 }

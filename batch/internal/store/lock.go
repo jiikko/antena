@@ -81,7 +81,7 @@ func (l *Lock) Acquire(ctx context.Context) (bool, error) {
 				continue
 			}
 		}
-		l.warn(fmt.Sprintf("WARN migration-next skipped: another execution owns the S3 lock (started_at=%s)", startedAt(current)))
+		l.warn(fmt.Sprintf("WARN antena skipped: another execution owns the S3 lock (started_at=%s)", startedAt(current)))
 		return false, nil
 	}
 }
@@ -104,7 +104,7 @@ func (l *Lock) Release(ctx context.Context) {
 		_, err = l.store.Client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: &l.store.Bucket, Key: &key})
 	}
 	if err != nil {
-		l.warn(fmt.Sprintf("WARN migration-next lock release failed: %T: %v; lock may need manual cleanup", err, err))
+		l.warn(fmt.Sprintf("WARN antena lock release failed: %T: %v; lock may need manual cleanup", err, err))
 		return
 	}
 	l.acquired = false
@@ -136,7 +136,7 @@ func (l *Lock) takeOver(ctx context.Context, current map[string]any, etag string
 		return false, err
 	}
 	l.acquired = true
-	l.warn(fmt.Sprintf("WARN migration-next took over a stale S3 lock (started_at=%s, stale_after=%ds)", startedAt(current), int(l.staleAfter.Seconds())))
+	l.warn(fmt.Sprintf("WARN antena took over a stale S3 lock (started_at=%s, stale_after=%ds)", startedAt(current), int(l.staleAfter.Seconds())))
 	return true, nil
 }
 
@@ -145,7 +145,7 @@ func (l *Lock) stale(current map[string]any) bool {
 	t, err := time.Parse(time.RFC3339Nano, s)
 	if err != nil {
 		// An unreadable start time can never expire on its own.
-		l.warn(fmt.Sprintf("WARN migration-next lock has an unreadable started_at=%q; treating it as stale", s))
+		l.warn(fmt.Sprintf("WARN antena lock has an unreadable started_at=%q; treating it as stale", s))
 		return true
 	}
 	return l.now().Sub(t) > l.staleAfter
@@ -170,7 +170,7 @@ func (l *Lock) read(ctx context.Context) (map[string]any, string, error) {
 	}
 	var parsed map[string]any
 	if json.Unmarshal(body, &parsed) != nil || parsed == nil {
-		l.warn(fmt.Sprintf("WARN migration-next lock body is not a JSON object (%d bytes)", len(body)))
+		l.warn(fmt.Sprintf("WARN antena lock body is not a JSON object (%d bytes)", len(body)))
 		parsed = map[string]any{}
 	}
 	return parsed, aws.ToString(out.ETag), nil

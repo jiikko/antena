@@ -64,7 +64,7 @@ func newEnv(t *testing.T) *env {
 }
 
 func (e *env) run(prefix string) error {
-	vars := map[string]string{"MIGRATION_NEXT_PREFIX": prefix, "MIGRATION_NEXT_ALLOW_PUBLIC": "true"}
+	vars := map[string]string{"ANTENA_PREFIX": prefix, "ANTENA_ALLOW_PUBLIC": "true"}
 	st, err := store.FromEnv(func(k string) string { return vars[k] }, func(k string) (string, bool) { v, ok := vars[k]; return v, ok }, e.fake.Client())
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func TestRunWritesLiveKeysAndDedupsAcrossRuns(t *testing.T) {
 	if strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Fatalf("posts = %v, want %v", got, want)
 	}
-	if !strings.Contains(e.err.String(), "WARN migration-next: s3://prpr-antena/state/posts.json does not exist") {
+	if !strings.Contains(e.err.String(), "WARN antena: s3://prpr-antena/state/posts.json does not exist") {
 		t.Fatal(e.err.String())
 	}
 	for _, k := range []string{"index.html", "vip", "sites/1", "sites/2"} {
@@ -120,14 +120,14 @@ func TestRunWritesLiveKeysAndDedupsAcrossRuns(t *testing.T) {
 			t.Errorf("page %s: %v %v", k, ok, o.ContentType)
 		}
 	}
-	if _, ok := e.fake.Object("locks/migration-next-run.lock"); ok {
+	if _, ok := e.fake.Object("locks/antena-run.lock"); ok {
 		t.Error("lock not released")
 	}
-	if !strings.HasPrefix(e.log.String(), "migration-next started: pages under s3://prpr-antena//, state s3://prpr-antena/state/posts.json\n") {
+	if !strings.HasPrefix(e.log.String(), "antena started: pages under s3://prpr-antena//, state s3://prpr-antena/state/posts.json\n") {
 		t.Fatalf("no start line first: %s", e.log.String())
 	}
 	if !strings.Contains(e.log.String(), "one: +2\n") || !strings.Contains(e.log.String(), "two: +1\n") ||
-		!strings.Contains(e.log.String(), "migration-next uploaded 4 pages under s3://prpr-antena// and 3 posts to s3://prpr-antena/state/posts.json") {
+		!strings.Contains(e.log.String(), "antena uploaded 4 pages under s3://prpr-antena// and 3 posts to s3://prpr-antena/state/posts.json") {
 		t.Fatal(e.log.String())
 	}
 
@@ -293,7 +293,7 @@ func TestRunSurvivesAPanickingFetch(t *testing.T) {
 	if n := len(e.posts("state/posts.json")); n != 1 {
 		t.Fatalf("%d posts, want 1", n)
 	}
-	if _, ok := e.fake.Object("locks/migration-next-run.lock"); ok {
+	if _, ok := e.fake.Object("locks/antena-run.lock"); ok {
 		t.Error("lock not released")
 	}
 }
@@ -310,12 +310,12 @@ func TestRunUnderPrefixUsesItsOwnStateAndLock(t *testing.T) {
 		t.Fatal("live state changed")
 	}
 	for _, k := range e.fake.Puts {
-		if !strings.HasPrefix(k, "go-preview/") && k != "state/go-preview/posts.json" && k != "locks/go-preview/migration-next-run.lock" {
+		if !strings.HasPrefix(k, "go-preview/") && k != "state/go-preview/posts.json" && k != "locks/go-preview/antena-run.lock" {
 			t.Errorf("wrote %s", k)
 		}
 	}
 	for _, k := range e.fake.Gets {
-		if k == "state/posts.json" || k == "locks/migration-next-run.lock" {
+		if k == "state/posts.json" || k == "locks/antena-run.lock" {
 			t.Errorf("read %s", k)
 		}
 	}

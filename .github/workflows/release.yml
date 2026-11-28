@@ -74,8 +74,8 @@ jobs:
 
   # The batch that writes https://prpr-antena.com/ (batch/, the Go
   # implementation), the only thing this workflow deploys. It writes the public
-  # page keys: an empty MIGRATION_NEXT_PREFIX, which the batch accepts only with
-  # MIGRATION_NEXT_ALLOW_PUBLIC=true.
+  # page keys: an empty ANTENA_PREFIX, which the batch accepts only with
+  # ANTENA_ALLOW_PUBLIC=true.
   deploy_batch:
     needs: build_go
     runs-on: ubuntu-latest
@@ -125,19 +125,19 @@ jobs:
             --args="" \
             --task-timeout=1800s \
             --max-retries=0 \
-            --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID},AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY},MIGRATION_NEXT_PREFIX=${NEXT_PREFIX},MIGRATION_NEXT_ALLOW_PUBLIC=${NEXT_ALLOW_PUBLIC}"
+            --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID},AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY},ANTENA_PREFIX=${NEXT_PREFIX},ANTENA_ALLOW_PUBLIC=${NEXT_ALLOW_PUBLIC}"
 
           # Read the prefix back: a dropped empty value would silently fall back to migration-preview.
           # Read the command back too: leftover arguments would be passed to the Go binary.
           actual=$(gcloud run jobs describe "$NEXT_JOB_NAME" --project="$PROJECT_ID" --region="$JOB_REGION" --format=json |
-            python3 -c 'import json, sys; c=json.load(sys.stdin)["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]; env=c.get("env", []); print(json.dumps([c.get("command", []), c.get("args", []), next((e.get("value", "") for e in env if e["name"] == "MIGRATION_NEXT_PREFIX"), "<unset>")]))')
+            python3 -c 'import json, sys; c=json.load(sys.stdin)["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]; env=c.get("env", []); print(json.dumps([c.get("command", []), c.get("args", []), next((e.get("value", "") for e in env if e["name"] == "ANTENA_PREFIX"), "<unset>")]))')
           expected=$(python3 -c 'import json, sys; print(json.dumps([["/app/antena-batch"], [], sys.argv[1]]))' "$NEXT_PREFIX")
           if [[ "$actual" != "$expected" ]]; then
-            echo "::error::$NEXT_JOB_NAME has [command, args, MIGRATION_NEXT_PREFIX]=$actual, expected $expected."
+            echo "::error::$NEXT_JOB_NAME has [command, args, ANTENA_PREFIX]=$actual, expected $expected."
             exit 1
           fi
 
-      - name: Update migration-next schedule
+      - name: Update the batch schedule
         run: |
           # The trigger is created once by hand (docs/flow.md); this fails if it is missing.
           gcloud scheduler jobs update http "$NEXT_SCHEDULER_NAME" \
