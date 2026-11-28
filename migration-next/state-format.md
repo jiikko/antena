@@ -30,7 +30,7 @@ UTF-8 の JSON。書くときは次の形にする。
       "title": "記事の題",
       "url": "https://example.com/archives/1.html",
       "summary": "フィードの要約（そのまま）",
-      "content": "<!DOCTYPE html ...>...</html>",
+      "content": "<p>本文 <img src=\"https://example.com/a.jpg\"></p>",
       "published_at": "2026-11-27T12:10:00.000000Z",
       "created_at": "2026-11-27T12:30:40.654321Z",
       "updated_at": "2026-11-27T12:30:40.654321Z"
@@ -54,7 +54,7 @@ UTF-8 の JSON。書くときは次の形にする。
 | `id` | 整数。ファイルの中で記事ごとに一意。新しい記事に、今ある最大の `id` + 1 から振る（間引いた記事の `id` は、また振られることがある）。ページはサイトごとの一覧と「直近2日」を `id` の降順で並べるので、取り込んだ順に大きくする |
 | `site_id` | `config/sites.yml` の `sites[].id`。無効にしたサイト（`enable: false`）も含め、`sites.yml` に在る id でなければならない。無い id の記事が1件でもあると実行は失敗する（サイトを `sites.yml` から消すときは、先にそのサイトの記事を消す） |
 | `title` / `url` / `summary` | フィードの項目のまま。`summary` は `null` でよい |
-| `content` | フィードの本文（無ければ要約）から広告・関連記事などを取り除き、HTML 文書として書き出したもの。取り除く規則は `FeedEntries.cleaned_content` で、`spec/migration_next/feed_entries_golden_spec.rb` が記録した RSS で期待値を固めている |
+| `content` | フィードの本文（無ければ要約）から広告・関連記事などを取り除いた HTML。読む側が使うのは、この中の `<img>` だけ（サイトのページの画像）。書き出し方は実装ごとに違う: Ruby は Nokogiri の `to_html`（HTML 文書の形）、Go は取り除いた要素を切り取っただけの元の HTML。どちらから取り出した `<img>` も、同じバイトになる（下の「Go の実装との違い」） |
 | `published_at` | フィードの公開日時（UTC。Feedjira が UTC に直す）。無ければ `null` |
 | `created_at` / `updated_at` | 取り込んだ日時（UTC）。ページの時刻と古い記事の間引きは `created_at` で決める |
 
@@ -88,6 +88,19 @@ UTF-8 の JSON。書くときは次の形にする。
 消し方: 読んだロックの `token` が自分のものなら消す。自分のものでなければ（奪われていれば）消さない。
 
 ジョブの task-timeout（`release.yml` の 1800 秒）は、ロックを奪えるまでの1時間より短くしておく。実行中のタスクが Cloud Run に止められてからでないと、別の実行がそのロックを奪えないようにするため。
+
+## Go の実装との違い
+
+Go の実装（`batch/`）は、上の決まりに加えて、Ruby の実装と同じ記事・同じページを作る。比べ方は `batch/README.md`。次の場合だけ結果が違う。
+
+- フィードの形式: Go が読むのは RSS と RDF（Feedjira の RSS・ITunesRSS・RSSFeedBurner と同じ読み方）だけ。Atom と JSON Feed は、読めない形式としてそのサイトを WARN で飛ばす（Ruby は読む）。今の有効なサイトは全部 RSS か RDF
+- `<guid/>` だけで `<link>` が無い記事: Ruby は URL を `no_buffer` という文字列にして取り込む（sax-machine の値の無い要素の扱い）。Go は URL が無いものとして捨てる
+- Shift_JIS などの UTF-8 でないフィード: 文字の変換表が違う（Ruby は libxml2 の iconv、Go は WHATWG の表）。波ダッシュなど一部の文字が別の文字になる。文字コードの名前は、Go は WHATWG の名前と CP932・Windows-31J・SJIS などの別名を読み、それ以外は読めない（Ruby は iconv が知っている名前を読む）。ISO-8859-1 と US-ASCII は libxml2 と同じに変換する（0x80 以上のバイトは、Latin-1 ではその番号の文字、US-ASCII では変換できないバイト）
+- 宣言した文字コードで変換できないバイトがあるとき: Go はそのフィードの記事を全部捨てる。Ruby も小さいフィードでは全部を失う。大きいフィードでは、そのバイトより前の記事は残ることもある
+- ログ: Ruby は読めない日時に Feedjira の WARN を標準出力へ出す。Go は出さない。取得の失敗の WARN に出る種類の名前も違う（Ruby はクラス名、Go は Go の型名）
+- フィードの日時: Ruby は `DateTime.parse` で、ほとんどの書き方を読む。Go は RFC 822・RFC 1123・ISO 8601 の書き方と、よく使うタイムゾーン名（JST・GMT・EST など）だけを読む。読めない日時は、どちらも値なしにする
+- 本文の掃除で、閉じていない要素（`<p class="kijinai">` の後に `</p>` が無い）: libxml2 は次のブロックで閉じたとみなして、そこまでを消す。Go は終わりのタグか本文の終わりまでを消す
+- 本文に値の無い属性（`<img ismap>`）があっても、どちらも名前だけを書き出す
 
 ## 別の実装を本番へ入れるとき
 
