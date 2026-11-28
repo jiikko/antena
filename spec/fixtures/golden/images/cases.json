@@ -1,0 +1,162 @@
+[
+  {
+    "content": "<p>text</p>",
+    "images": ""
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\">",
+    "images": "<img src=\"https://example.com/a.jpg\">"
+  },
+  {
+    "content": "<IMG SRC=\"https://example.com/A.JPG\" ALT=\"Up\">",
+    "images": "<img src=\"https://example.com/A.JPG\" alt=\"Up\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" width=\"1\" height=\"1\">",
+    "images": ""
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" width=\"100\" height=\"1\">",
+    "images": "<img src=\"https://example.com/a.jpg\" width=\"100\" height=\"1\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" width='1'>",
+    "images": ""
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" width=1>",
+    "images": ""
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" border=\"0\"><img src=\"https://example.com/b.jpg\" alt=\"\">",
+    "images": "<img src=\"https://example.com/a.jpg\" border=\"0\"><img src=\"https://example.com/b.jpg\" alt=\"\">"
+  },
+  {
+    "content": "<div><p><a href=\"x\"><img src=\"https://example.com/nested.jpg\" class=\"pict\" /></a></p></div>",
+    "images": "<img src=\"https://example.com/nested.jpg\" class=\"pict\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/q.jpg?a=1&b=2\">",
+    "images": "<img src=\"https://example.com/q.jpg?a=1&amp;b=2\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/q.jpg?a=1&amp;b=2\">",
+    "images": "<img src=\"https://example.com/q.jpg?a=1&amp;b=2\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/日本語.jpg\" alt=\"日本語 &amp; <>\">",
+    "images": "<img src=\"https://example.com/%E6%97%A5%E6%9C%AC%E8%AA%9E.jpg\" alt=\"日本語 &amp; &lt;&gt;\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a b.jpg\">",
+    "images": "<img src=\"https://example.com/a%20b.jpg\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/%E3%81%82.jpg\">",
+    "images": "<img src=\"https://example.com/%E3%81%82.jpg\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/{x}|^`[].jpg\">",
+    "images": "<img src=\"https://example.com/{x}|^`[].jpg\">"
+  },
+  {
+    "content": "<img src='https://example.com/single.jpg' alt='it\"s'>",
+    "images": "<img src=\"https://example.com/single.jpg\" alt='it\"s'>"
+  },
+  {
+    "content": "<img src=https://example.com/unquoted.jpg alt=bare>",
+    "images": "<img src=\"https://example.com/unquoted.jpg\" alt=\"bare\">"
+  },
+  {
+    "content": "<img alt=\"a&quot;b\" title=\"x'y\" src=\"https://example.com/a.jpg\">",
+    "images": "<img alt='a\"b' title=\"x'y\" src=\"https://example.com/a.jpg\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" data-src=\"https://example.com/日本.jpg\" srcset=\"https://example.com/a.jpg 1x, https://example.com/b b.jpg 2x\">",
+    "images": "<img src=\"https://example.com/a.jpg\" data-src=\"https://example.com/日本.jpg\" srcset=\"https://example.com/a.jpg 1x, https://example.com/b b.jpg 2x\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" ismap>",
+    "images": "<img src=\"https://example.com/a.jpg\" ismap>"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" alt=\"line\nbreak\ttab\">",
+    "images": "<img src=\"https://example.com/a.jpg\" alt=\"line\nbreak\ttab\">"
+  },
+  {
+    "content": "<img src=\"  https://example.com/spaces.jpg  \">",
+    "images": "<img src=\"https://example.com/spaces.jpg%20%20\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" alt=\"&#x3042;&#12354;&hearts;&nbsp;\">",
+    "images": "<img src=\"https://example.com/a.jpg\" alt=\"ああ♥ \">"
+  },
+  {
+    "content": "<img src=\"javascript:alert(1)\" onerror=\"alert('x')\">",
+    "images": "<img src=\"javascript:alert(1)\" onerror=\"alert('x')\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" src=\"https://example.com/dup.jpg\">",
+    "images": "<img src=\"https://example.com/a.jpg\">"
+  },
+  {
+    "content": "<img>",
+    "images": "<img>"
+  },
+  {
+    "content": "<img src=\"\">",
+    "images": "<img src=\"\">"
+  },
+  {
+    "content": "<!-- <img src=\"https://example.com/comment.jpg\"> --><img src=\"https://example.com/after.jpg\">",
+    "images": "<img src=\"https://example.com/after.jpg\">"
+  },
+  {
+    "content": "<script>var s = '<img src=\"https://example.com/script.jpg\">';</script><img src=\"https://example.com/real.jpg\">",
+    "images": "<img src=\"https://example.com/real.jpg\">"
+  },
+  {
+    "content": "<noscript><img src=\"https://example.com/noscript.jpg\"></noscript>",
+    "images": "<img src=\"https://example.com/noscript.jpg\">"
+  },
+  {
+    "content": "<table><tr><td><img src=\"https://example.com/table.jpg\"></td></tr></table>",
+    "images": "<img src=\"https://example.com/table.jpg\">"
+  },
+  {
+    "content": "<p>unclosed <b><img src=\"https://example.com/unclosed.jpg\"",
+    "images": "<img src=\"https://example.com/unclosed.jpg\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" alt=\"<b>bold</b>\">",
+    "images": "<img src=\"https://example.com/a.jpg\" alt=\"&lt;b&gt;bold&lt;/b&gt;\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" alt=\"a > b\">",
+    "images": "<img src=\"https://example.com/a.jpg\" alt=\"a &gt; b\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" href=\"https://example.com/ü ü\">",
+    "images": "<img src=\"https://example.com/a.jpg\" href=\"https://example.com/%C3%BC%20%C3%BC\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" style=\"width:1px\" alt=\"&lt;\">",
+    "images": "<img src=\"https://example.com/a.jpg\" style=\"width:1px\" alt=\"&lt;\">"
+  },
+  {
+    "content": "<img src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\" width=\"1\">",
+    "images": ""
+  },
+  {
+    "content": "<img src=\"https://example.com/emoji😀.jpg\" alt=\"😀\">",
+    "images": "<img src=\"https://example.com/emoji%F0%9F%98%80.jpg\" alt=\"😀\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\" alt=\"&amp;amp;\">",
+    "images": "<img src=\"https://example.com/a.jpg\" alt=\"&amp;amp;\">"
+  },
+  {
+    "content": "<img src=\"https://example.com/a.jpg\"/><br><img src=\"https://example.com/b.jpg\" / >",
+    "images": "<img src=\"https://example.com/a.jpg\"><img src=\"https://example.com/b.jpg\">"
+  }
+]

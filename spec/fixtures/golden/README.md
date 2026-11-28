@@ -44,3 +44,14 @@ HTML の golden とは別に、本物の RSS から作る記事の候補（`Migr
 - サイトごとに `<id>.xml`（runner と同じ `Net::HTTP.get_response` で受けた本文そのもの）、`<id>.meta.json`（URL・status・記録した時刻）、`<id>.expected.json`（期待する記事の候補）
 - `spec/migration_next/feed_entries_golden_spec.rb` が比べる。未来の記事を外す判定の `now` は記録した時刻。ファイルが無いと pending になる（緑にはならない）。置き場は `ANTENA_FEED_FIXTURES` で変えられる
 - 記録し直すスクリプトは同じ場所の `record.rb`（`bundle exec ruby tmp/feed-record-20261127/record.rb <出力先>`）。記録し直したら `UPDATE_GOLDEN=1` で期待値を作り直す
+
+## 画像タグとフィード（Go の実装と比べる答え）
+
+`images/cases.json` と `feeds/cases.json` は、作った入力を Ruby の実装に通した出力。Go の実装（`batch/`）のテストが、同じ入力から同じ出力が出ることを確かめる（`batch/README.md`）。入力はどれも架空のもので、本物の本文は入っていない。
+
+| ファイル | 入力 | 出力 |
+| --- | --- | --- |
+| `images/cases.json` | 記事の本文（HTML） | `PostRecord#only_image_tags_by_content` が取り出した `<img>`（libxml2 の書き出し方） |
+| `feeds/cases.json` | RSS / RDF の本文（base64） | `FeedEntries.parse` の記事の題・URL・要約・公開日時と、本文から取り出した `<img>` |
+
+作り直すときは `bundle exec ruby spec/fixtures/golden/images/build.rb` と `bundle exec ruby spec/fixtures/golden/feeds/build.rb`。入力を足したら Go のテストも回す。CI（release.yml の `test_go`）も毎回この2つを Linux で作り直し、commit したものと違えば落ちる（gem の更新や、Mac と Linux の libxml2・iconv の違いで出力が変わったとき）。
