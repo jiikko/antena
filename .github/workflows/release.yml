@@ -80,11 +80,11 @@ jobs:
     needs: build_go
     runs-on: ubuntu-latest
     env:
-      NEXT_JOB_NAME: antena-fetch-posts-next
-      NEXT_SCHEDULER_NAME: antena-fetch-posts-next-scheduler-trigger
+      JOB_NAME: antena-fetch-posts-next
+      SCHEDULER_NAME: antena-fetch-posts-next-scheduler-trigger
       JOB_REGION: asia-northeast1
-      NEXT_PREFIX: ""
-      NEXT_ALLOW_PUBLIC: "true"
+      PREFIX: ""
+      ALLOW_PUBLIC: "true"
     steps:
       - id: "auth"
         uses: "google-github-actions/auth@v3"
@@ -100,11 +100,11 @@ jobs:
           # sure the site really refuses state/ before the job writes there.
           # Probe an object that is known to exist: a missing key is 403 even
           # without the Deny (the OAI has no ListBucket), which would prove nothing.
-          echo "Deny probe for the HideMigrationState bucket policy" |
+          echo "Deny probe for the HideState bucket policy" |
             aws s3 cp - s3://prpr-antena/state/deny-probe.txt --region ap-northeast-1 --content-type text/plain
           code=$(curl -s -o /dev/null -w '%{http_code}' "https://prpr-antena.com/state/deny-probe.txt?v=${GITHUB_SHA}")
           if [[ "$code" != "403" ]]; then
-            echo "::error::https://prpr-antena.com/state/deny-probe.txt returned $code (expected 403); restore the HideMigrationState Deny in the prpr-antena bucket policy."
+            echo "::error::https://prpr-antena.com/state/deny-probe.txt returned $code (expected 403); restore the HideState Deny in the prpr-antena bucket policy."
             exit 1
           fi
 
@@ -113,11 +113,11 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          # --set-env-vars replaces the whole job environment; DATABASE_URL is never set.
+          # --set-env-vars replaces the whole job environment.
           # --task-timeout must stay below the lock's stale age (1h, store.DefaultStaleAfter)
           # so a running task is killed before another execution may take its lock over.
           # --args="" clears arguments left by an earlier command (the Ruby job had some).
-          gcloud run jobs deploy "$NEXT_JOB_NAME" \
+          gcloud run jobs deploy "$JOB_NAME" \
             --project="$PROJECT_ID" \
             --region="$JOB_REGION" \
             --image="${REGISTRY_HOST}/$PROJECT_ID/$REPOSITORY_NAME/batch-go:master-${GITHUB_SHA}" \
@@ -125,30 +125,30 @@ jobs:
             --args="" \
             --task-timeout=1800s \
             --max-retries=0 \
-            --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID},AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY},ANTENA_PREFIX=${NEXT_PREFIX},ANTENA_ALLOW_PUBLIC=${NEXT_ALLOW_PUBLIC}"
+            --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID},AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY},ANTENA_PREFIX=${PREFIX},ANTENA_ALLOW_PUBLIC=${ALLOW_PUBLIC}"
 
           # Read the prefix back: a dropped empty value would make the batch refuse to run (ANTENA_PREFIX is required).
           # Read the command back too: leftover arguments would be passed to the Go binary.
-          actual=$(gcloud run jobs describe "$NEXT_JOB_NAME" --project="$PROJECT_ID" --region="$JOB_REGION" --format=json |
+          actual=$(gcloud run jobs describe "$JOB_NAME" --project="$PROJECT_ID" --region="$JOB_REGION" --format=json |
             python3 -c 'import json, sys; c=json.load(sys.stdin)["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]; env=c.get("env", []); print(json.dumps([c.get("command", []), c.get("args", []), next((e.get("value", "") for e in env if e["name"] == "ANTENA_PREFIX"), "<unset>")]))')
-          expected=$(python3 -c 'import json, sys; print(json.dumps([["/app/antena-batch"], [], sys.argv[1]]))' "$NEXT_PREFIX")
+          expected=$(python3 -c 'import json, sys; print(json.dumps([["/app/antena-batch"], [], sys.argv[1]]))' "$PREFIX")
           if [[ "$actual" != "$expected" ]]; then
-            echo "::error::$NEXT_JOB_NAME has [command, args, ANTENA_PREFIX]=$actual, expected $expected."
+            echo "::error::$JOB_NAME has [command, args, ANTENA_PREFIX]=$actual, expected $expected."
             exit 1
           fi
 
       - name: Update the batch schedule
         run: |
           # The trigger is created once by hand (docs/flow.md); this fails if it is missing.
-          gcloud scheduler jobs update http "$NEXT_SCHEDULER_NAME" \
+          gcloud scheduler jobs update http "$SCHEDULER_NAME" \
             --schedule "*/30 8-23 * * *" \
             --time-zone "Asia/Tokyo" \
             --location "$JOB_REGION"
           # Never resume it here: it is paused on purpose during state resets and
           # emergencies, and a push must not undo that.
-          state=$(gcloud scheduler jobs describe "$NEXT_SCHEDULER_NAME" --location "$JOB_REGION" --format='value(state)')
+          state=$(gcloud scheduler jobs describe "$SCHEDULER_NAME" --location "$JOB_REGION" --format='value(state)')
           if [[ "$state" == "PAUSED" ]]; then
-            echo "::warning::$NEXT_SCHEDULER_NAME is paused; resume it by hand when the reset or emergency is over (docs/flow.md)."
+            echo "::warning::$SCHEDULER_NAME is paused; resume it by hand when the reset or emergency is over (docs/flow.md)."
           fi
 
   update_deployment_status:

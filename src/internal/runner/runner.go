@@ -231,7 +231,11 @@ func prune(st *state.State, now time.Time) {
 	st.Posts = kept
 }
 
-// HTTPFetch is Net::HTTP.get_response as the Ruby runner uses it: redirects
+// userAgent replaced "Ruby" (Net::HTTP's) on 2026-11-28; all 11 feeds gave
+// the same status and body with both.
+const userAgent = "antena-batch (+https://prpr-antena.com/)"
+
+// HTTPFetch is Net::HTTP.get_response as the former Ruby runner used it: redirects
 // are not followed, the status is not checked (the body is parsed as it is),
 // gzip is decoded, and connecting and waiting for the response each have a
 // 60 second limit.
@@ -252,7 +256,7 @@ func HTTPFetch() func(ctx context.Context, url string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("User-Agent", "Ruby")
+		req.Header.Set("User-Agent", userAgent)
 		req.Header.Set("Accept", "*/*")
 		resp, err := client.Do(req)
 		if err != nil {

@@ -62,7 +62,7 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 
 | 設定 | 中身 | 無いと起きること |
 | --- | --- | --- |
-| バケットポリシーの `HideMigrationState` | CloudFront の OAI に `state/*` と `locks/*` の GetObject を拒否する | `https://prpr-antena.com/state/posts.json` で全記事の本文が読める |
+| バケットポリシーの `HideState` | CloudFront の OAI に `state/*` と `locks/*` の GetObject を拒否する | `https://prpr-antena.com/state/posts.json` で全記事の本文が読める |
 | ライフサイクル | 1日で消すのは `sites/` と `preview/` だけ（2026-11-28 に `migration-preview/`・`migration/` から替えた）。以前は全キーが対象だった | `state/posts.json` が1日で消える |
 
 トップページとカテゴリのページは自動では消えない。バッチが止まっても、古い内容のまま表示され続ける。`sites/` は1日で消えるが、バッチが毎日書き直す（夜間の停止は9時間）。バージョニングは無効のまま（ユーザー判断）。

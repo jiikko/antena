@@ -17,7 +17,7 @@
   - `config/sites.yml` のサイトの RSS を取得し、記事の状態 `s3://prpr-antena/state/posts.json` に足す
   - 古い記事を間引き（5 日より古く、サイトあたり 50 件を超える分）、トップ・カテゴリ・サイト別の HTML を生成して S3 にアップロードする
 - 実装は `src/`（Go。詳細は `src/README.md`）、運用は `docs/flow.md`、記事状態とロックの形式は `docs/state-format.md`
-- 2026-11-28 までは Ruby の実装だった（移行の経緯は `migration.md`）
+- 2026-11-28 までは Ruby の実装だった（移行の経緯は `docs/migration.md`）
 
 ## サイトの追加・停止
 

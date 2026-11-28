@@ -1,5 +1,2 @@
 # Scratch files (work logs, comparison output).
 /tmp/*
-
-# Local logs from the removed Rails app.
-/log/

@@ -13,7 +13,7 @@
 
 - prefix の前後の `/` は落とす。`ANTENA_PREFIX` を指定しないと実行は失敗する（2026-11-28 までは `migration-preview` に書いた）。試しに動かすときの prefix は `preview`
 - prefix が違えば、記事状態とロックは別のものになる。shadow の実行は本番の記事状態を読まず、書かず、本番とロックを取り合わない
-- `state/` と `locks/` は必ずキーの先頭に置く。バケットポリシーの `HideMigrationState` が `state/*` と `locks/*` をサイトから読めなくしているのは、この位置に限られる（`flow.md`「記事状態の置き場」）
+- `state/` と `locks/` は必ずキーの先頭に置く。バケットポリシーの `HideState` が `state/*` と `locks/*` をサイトから読めなくしているのは、この位置に限られる（`flow.md`「記事状態の置き場」）
 
 ## posts.json
 
