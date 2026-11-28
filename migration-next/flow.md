@@ -28,6 +28,7 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 - プログラムの部分（ログの最初の行から最後の行まで）は、Ruby の約 28 秒に対して Go は 17〜19 秒。実行全体の大半はコンテナの起動待ち（60〜90 秒）なので、ページが更新されるまでの時間はほぼ変わらない
 - 切り替えの後、RSS の取得とページのアップロードを並列にした（同時に 8 本まで）。取り込む順はサイト id の順のままなので、記事の id と重複の判定は取得が返る順に左右されない
 - 並列にした後の 11-28 19:00 の回は、起動の行から最後の行まで約 10 秒（全サイトの取得まで 6.6 秒、記事状態とページの書き込みまで 3.2 秒）、実行全体は 56 秒。起動の行は 11-28 19:00 の回から出ている（それより前のログは、最初の行が1サイト目の取得の後）
+- 11-28 19:20 にジョブと Scheduler を us-central1 から asia-northeast1 へ移した（ユーザー指示）。us-central1 は 2023-05 の旧 Rails のジョブから引き継いだもので、理由は記録に無い。イメージ・S3・フィードはどれも日本にある。移した後の2回（手動 19:23、定期 19:30）は、実行全体が 9.5 秒と 14.4 秒、起動の行から最後の行までが 4.2 秒と 4.4 秒（us-central1 では全体 56〜123 秒、プログラム約 10 秒）。回数が少ないので、何回か見てから値を直す
 - Ruby の実装（`migration-next/`）は消していない。Go のテストが比べる答え（`spec/fixtures/golden/`）を作るために残している。本番では動かない
 - 戻すときは、最後の Ruby のイメージ `asia-northeast1-docker.pkg.dev/jiikko/prpr-antena/web:master-897d78f36252cd6d70c2bb143f4dc3e0e26a26a7` で `gcloud run jobs deploy antena-fetch-posts-next --image=<そのイメージ> --command=bundle --args=exec,ruby,migration-next/bin/run.rb` を打つ（region・env は今のまま。`--set-env-vars` は渡さない）。次の push で Go に戻るので、戻したままにするなら release.yml も直す
 
