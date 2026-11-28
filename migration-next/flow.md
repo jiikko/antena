@@ -20,6 +20,17 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 
 ワークフローは Scheduler の `update` だけを行い、resume しない。記事状態の作り直しや緊急時に pause したものを、push が勝手に戻さないため。pause 中なら warning を出す。
 
+## Go の実装の shadow
+
+Go の実装（`batch/`）を、本番と並べて Cloud Run Job `antena-fetch-posts-go`（us-central1）で動かす（2026-11-28 から）。prefix は `migration-preview` で、本番には触れない。記事状態は `state/migration-preview/posts.json`、ロックは `locks/migration-preview/migration-next-run.lock`、ページは `migration-preview/` の下に置く。
+
+- リリースワークフローの `deploy_go_shadow` が、push のたびにイメージ（`batch-go:master-<sha>`）と env を更新し、prefix を読み返す。task-timeout と max-retries は本番のジョブと同じ
+- Scheduler `antena-fetch-posts-go-scheduler-trigger` は一度だけ手で作った（本番と同じ時刻・同じサービスアカウント）。ワークフローは状態を見て warning を出すだけで、resume しない
+- 始める前に `state/posts.json` を `state/migration-preview/posts.json` へコピーし、本番と同じ記事から始めた
+- shadow の間は、Ruby の実装を手で動かさない（指定しないときの prefix が同じ `migration-preview` なので、shadow と記事状態を取り合う）
+- アラート（下の節）は本番のジョブだけを見ている。shadow の失敗は鳴らない
+- 本番へ切り替えるときは、本番のジョブ `antena-fetch-posts-next` のイメージとコマンドを Go のものに替える。ジョブの名前を変えないので、Scheduler とアラートはそのまま使える。手順は state-format.md の「別の実装を本番へ入れるとき」
+
 ## 失敗の通知
 
 ページはバッチが止まっても古いまま表示され続けるので、止まったことは Cloud Monitoring のアラートで知る（2026-11-28 に作成）。通知はメールの通知チャンネル「antena 運用メール」へ届く。
