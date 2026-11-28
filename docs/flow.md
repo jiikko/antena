@@ -20,6 +20,16 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 
 ワークフローは Scheduler の `update` だけを行い、resume しない。記事状態の作り直しや緊急時に pause したものを、push が勝手に戻さないため。pause 中なら warning を出す。
 
+イメージは Artifact Registry の `asia-northeast1-docker.pkg.dev/jiikko/prpr-antena` に push のたびに溜まる。repository の片付けの規則（cleanup policy。2026-11-28 に入れ替え）で次のように消える。Artifact Registry が1日に1回ほど回す。
+
+| 規則 | 中身 |
+| --- | --- |
+| `delete-older-than-7d` | 7 日より古いものを消す |
+| `keep-most-recent-30` | パッケージごとに新しい 30 件は残す（1回のビルドが親と子の manifest で約3件なので、約 10 ビルド分） |
+| `keep-ruby-rollback` | `web`（Ruby のイメージ）は全部残す。残っているのは、Ruby に戻す手順（下の「Go の実装への切り替え」）が使う1件とその子の manifest だけ |
+
+本番のジョブは、いつもいちばん新しい `batch-go` を使うので消えない。規則を見る・替えるのは `gcloud artifacts repositories describe|set-cleanup-policies prpr-antena --location=asia-northeast1`。
+
 ## Go の実装への切り替え（2026-11-28）
 
 本番のジョブ `antena-fetch-posts-next` のイメージを、Ruby の実装（`web:master-<sha>`）から Go の実装（`batch-go:master-<sha>`）に替えた（ユーザー指示）。ジョブの名前・Scheduler・アラート・記事状態・ロックは同じものを使う。
