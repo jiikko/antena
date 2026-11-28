@@ -15,11 +15,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jiikko/antena/batch/internal/catalog"
-	"github.com/jiikko/antena/batch/internal/feed"
-	"github.com/jiikko/antena/batch/internal/render"
-	"github.com/jiikko/antena/batch/internal/state"
-	"github.com/jiikko/antena/batch/internal/store"
+	"github.com/jiikko/antena/src/internal/catalog"
+	"github.com/jiikko/antena/src/internal/feed"
+	"github.com/jiikko/antena/src/internal/render"
+	"github.com/jiikko/antena/src/internal/state"
+	"github.com/jiikko/antena/src/internal/store"
 )
 
 type Runner struct {

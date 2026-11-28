@@ -1,13 +1,13 @@
 # バッチの実行フローと運用
 
-この文書は、https://prpr-antena.com/ を書くバッチ（Go の実装 `batch/`。2026-11-28 までは Ruby の実装）の実行フロー、記事状態の置き場、運用の手順、Cloud SQL からの移行の経緯を説明する。
+この文書は、https://prpr-antena.com/ を書くバッチ（Go の実装 `src/`。2026-11-28 までは Ruby の実装）の実行フロー、記事状態の置き場、運用の手順、Cloud SQL からの移行の経緯を説明する。
 
 ## 実行フロー
 
 ```text
 Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23時 JST）
   → Cloud Run Job antena-fetch-posts-next（asia-northeast1）
-      → /app/antena-batch（Go の実装 batch/。DBなし）
+      → /app/antena-batch（Go の実装 src/。DBなし）
           ├─ config/sites.yml を読む
           ├─ S3 から state/posts.json を読む
           ├─ enabledなサイトのRSSを取得（並列）・重複確認（サイト id の順）
@@ -29,7 +29,7 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 - 切り替えの後、RSS の取得とページのアップロードを並列にした（同時に 8 本まで）。取り込む順はサイト id の順のままなので、記事の id と重複の判定は取得が返る順に左右されない
 - 並列にした後の 11-28 19:00 の回は、起動の行から最後の行まで約 10 秒（全サイトの取得まで 6.6 秒、記事状態とページの書き込みまで 3.2 秒）、実行全体は 56 秒。起動の行は 11-28 19:00 の回から出ている（それより前のログは、最初の行が1サイト目の取得の後）
 - 11-28 19:20 にジョブと Scheduler を us-central1 から asia-northeast1 へ移した（ユーザー指示）。us-central1 は 2023-05 の旧 Rails のジョブから引き継いだもので、理由は記録に無い。イメージ・S3・フィードはどれも日本にある。移した後の2回（手動 19:23、定期 19:30）は、実行全体が 9.5 秒と 14.4 秒、起動の行から最後の行までが 4.2 秒と 4.4 秒（us-central1 では全体 56〜123 秒、プログラム約 10 秒）。回数が少ないので、何回か見てから値を直す
-- Ruby の実装（`migration-next/`・`spec/`・`Gemfile`）は、切り替えた日のうちに repo から消した（ユーザー指示）。コードは commit `bcbfaff` まで残っている。Go のテストが比べる答えは、Ruby が作ったものを `batch/internal/*/testdata/` に移して使い続けている
+- Ruby の実装（`migration-next/`・`spec/`・`Gemfile`）は、切り替えた日のうちに repo から消した（ユーザー指示）。コードは commit `bcbfaff` まで残っている。Go のテストが比べる答えは、Ruby が作ったものを `src/internal/*/testdata/` に移して使い続けている
 - 戻すときは、最後の Ruby のイメージ `asia-northeast1-docker.pkg.dev/jiikko/prpr-antena/web:master-897d78f36252cd6d70c2bb143f4dc3e0e26a26a7` で `gcloud run jobs deploy antena-fetch-posts-next --image=<そのイメージ> --command=bundle --args=exec,ruby,migration-next/bin/run.rb` に `--update-env-vars=MIGRATION_NEXT_PREFIX=,MIGRATION_NEXT_ALLOW_PUBLIC=true` を付けて打つ（region は今のまま。Ruby は 11-28 に改名する前の名前の環境変数とロックのキー `locks/migration-next-run.lock` を使う。AWS の鍵はジョブに残っているので `--set-env-vars` は渡さない。Go と同時に動かすとロックで排他されないので、Go のジョブを置き換える形でだけ使う）。次の push で Go に戻るので、戻したままにするなら release.yml も直す（Ruby のイメージにはコードが入っているので、repo から消した後もこの手順で動く）
 
 ## 失敗の通知

@@ -12,8 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	"github.com/jiikko/antena/batch/internal/runner"
-	"github.com/jiikko/antena/batch/internal/store"
+	"github.com/jiikko/antena/src/internal/runner"
+	"github.com/jiikko/antena/src/internal/store"
 )
 
 func main() {

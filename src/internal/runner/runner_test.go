@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jiikko/antena/batch/internal/s3fake"
-	"github.com/jiikko/antena/batch/internal/state"
-	"github.com/jiikko/antena/batch/internal/store"
+	"github.com/jiikko/antena/src/internal/s3fake"
+	"github.com/jiikko/antena/src/internal/state"
+	"github.com/jiikko/antena/src/internal/store"
 )
 
 const sitesYAML = `categories:

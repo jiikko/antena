@@ -55,7 +55,7 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 
 - 旧ジョブとは別の Cloud Run Job `antena-fetch-posts-next` として並走させ、`MIGRATION_NEXT_MODE`（repository variable）で preview と public を切り替える。手順は `docs/flow.md`
 
-- `migration-next/` にDBなしrunner、記事状態のJSONストア、フィード取得、静的HTML生成を実装した（Ruby。2026-11-28 に Go の `batch/` へ置き換えて削除）
+- `migration-next/` にDBなしrunner、記事状態のJSONストア、フィード取得、静的HTML生成を実装した（Ruby。2026-11-28 に Go の `src/` へ置き換えて削除）
 - バッチ開始時に `config/sites.yml` を読み込み、Site / Category を DB ではなく YAML 由来のデータで扱う
 - posts は S3 の JSON 状態ファイルから読み込み、fetch・重複チェック・間引き・HTML 生成を行い、終了時に S3 へ保存し直す
 - `Site.fetch` のフィード取得と本文掃除（正規表現群）の挙動は現行と変えない
@@ -82,7 +82,7 @@ Cloud SQL インスタンス `jiikko:asia-northeast1:hoby-db` を最終的に停
 
 ### タスク5: その後
 
-- Go への書き換え（2026-11-28 に着手、ユーザー指示）: `batch/` に実装し、Ruby の実装と同じ出力になることを答えと比べて確かめた（`batch/README.md`）。shadow のジョブで本番と並べて動かしてから、2026-11-28 に本番のジョブのイメージを Go に替えた（ユーザー指示。`docs/flow.md`「Go の実装への切り替え」）。Ruby の実装は答えを作るために残している
+- Go への書き換え（2026-11-28 に着手、ユーザー指示）: `src/` に実装し、Ruby の実装と同じ出力になることを答えと比べて確かめた（`src/README.md`）。shadow のジョブで本番と並べて動かしてから、2026-11-28 に本番のジョブのイメージを Go に替えた（ユーザー指示。`docs/flow.md`「Go の実装への切り替え」）。Ruby の実装は答えを作るために残している
 - 今の Ruby の実装の基準値。2026-11-26 21:49〜11-27 23:00 JST の 38 回の実行（失敗 0）を、Cloud Run の実行履歴・ジョブのログ・Monitoring から集計した。Go と比べるときは同じ取り方で測る
   | 項目 | 本番 10 回（11-27 19:06 以降） | shadow 26 回（初回の2回を除く） |
   | --- | --- | --- |

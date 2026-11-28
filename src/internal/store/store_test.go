@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jiikko/antena/batch/internal/s3fake"
+	"github.com/jiikko/antena/src/internal/s3fake"
 )
 
 func env(m map[string]string) (func(string) string, func(string) (string, bool)) {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jiikko/antena/batch/internal/content"
+	"github.com/jiikko/antena/src/internal/content"
 )
 
 type expectedEntry struct {
@@ -90,7 +90,7 @@ func TestSyntheticFeedsMatchRuby(t *testing.T) {
 }
 
 // Recorded real feeds and the entries the former Ruby implementation read
-// from them (third-party content, kept only in the Mac's tmp/; batch/README.md).
+// from them (third-party content, kept only in the Mac's tmp/; src/README.md).
 // ANTENA_FEED_FIXTURES overrides the place.
 func TestRecordedFeedsMatchRuby(t *testing.T) {
 	dir := os.Getenv("ANTENA_FEED_FIXTURES")

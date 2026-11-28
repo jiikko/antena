@@ -22,7 +22,7 @@ import (
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/charmap"
 
-	"github.com/jiikko/antena/batch/internal/content"
+	"github.com/jiikko/antena/src/internal/content"
 )
 
 var ErrUnsupported = errors.New("unsupported feed format")

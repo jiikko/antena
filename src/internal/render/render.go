@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jiikko/antena/batch/internal/catalog"
-	"github.com/jiikko/antena/batch/internal/content"
-	"github.com/jiikko/antena/batch/internal/state"
+	"github.com/jiikko/antena/src/internal/catalog"
+	"github.com/jiikko/antena/src/internal/content"
+	"github.com/jiikko/antena/src/internal/state"
 )
 
 //go:embed style.html

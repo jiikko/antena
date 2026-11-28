@@ -1,10 +1,10 @@
 # 記事状態とロックの形式
 
-この文書は、バッチが S3 に置く記事状態（`posts.json`）と実行ロックの形式、それを読み書きするときの決まりを定める。今の実装は Go（`batch/`。2026-11-28 までは Ruby の実装）。別の実装を入れるときも、同じファイルを読み書きできるようにこの決まりに従い、ここに書いていない挙動を当てにしない。運用の手順は `flow.md` にある。
+この文書は、バッチが S3 に置く記事状態（`posts.json`）と実行ロックの形式、それを読み書きするときの決まりを定める。今の実装は Go（`src/`。2026-11-28 までは Ruby の実装）。別の実装を入れるときも、同じファイルを読み書きできるようにこの決まりに従い、ここに書いていない挙動を当てにしない。運用の手順は `flow.md` にある。
 
 ## キー
 
-バケットは `prpr-antena`。キーは `batch/internal/store` の `StateKey` と `LockKey` が `ANTENA_PREFIX`（ページの prefix）から決める。
+バケットは `prpr-antena`。キーは `src/internal/store` の `StateKey` と `LockKey` が `ANTENA_PREFIX`（ページの prefix）から決める。
 
 | prefix | 記事状態 | ロック | ページ |
 | --- | --- | --- | --- |
@@ -91,7 +91,7 @@ UTF-8 の JSON。書くときは次の形にする。
 
 ## 前の Ruby の実装との違い
 
-Go の実装（`batch/`）は、前の Ruby の実装（2026-11-28 まで本番）と同じ記事・同じページを作るように作った。比べた答えは `batch/README.md`。次の場合だけ結果が違う（記録として残す）。
+Go の実装（`src/`）は、前の Ruby の実装（2026-11-28 まで本番）と同じ記事・同じページを作るように作った。比べた答えは `src/README.md`。次の場合だけ結果が違う（記録として残す）。
 
 - フィードの形式: Go が読むのは RSS と RDF（Feedjira の RSS・ITunesRSS・RSSFeedBurner と同じ読み方）だけ。Atom と JSON Feed は、読めない形式としてそのサイトを WARN で飛ばす（Ruby は読む）。今の有効なサイトは全部 RSS か RDF
 - `<guid/>` だけで `<link>` が無い記事: Ruby は URL を `no_buffer` という文字列にして取り込む（sax-machine の値の無い要素の扱い）。Go は URL が無いものとして捨てる

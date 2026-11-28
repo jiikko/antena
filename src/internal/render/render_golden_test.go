@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jiikko/antena/batch/internal/catalog"
-	"github.com/jiikko/antena/batch/internal/state"
+	"github.com/jiikko/antena/src/internal/catalog"
+	"github.com/jiikko/antena/src/internal/state"
 )
 
 // testdata/: a fixed input and the pages expected from it. The pages were

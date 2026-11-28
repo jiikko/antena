@@ -1,4 +1,4 @@
-module github.com/jiikko/antena/batch
+module github.com/jiikko/antena/src
 
 go 1.26.0
 

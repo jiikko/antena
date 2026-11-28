@@ -1,4 +1,4 @@
-# batch（Go の実装）
+# src（Go の実装）
 
 https://prpr-antena.com/ を書くバッチの Go の実装（2026-11-28 から本番。Cloud Run Job `antena-fetch-posts-next`）。ファイルの形式とロックの取り方は `docs/state-format.md`、運用の手順は `docs/flow.md`。
 
