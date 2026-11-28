@@ -31,8 +31,10 @@ type Store struct {
 
 var slashes = regexp.MustCompile(`\A/+|/+\z`)
 
-// FromEnv reads ANTENA_BUCKET and ANTENA_PREFIX. An empty
-// prefix writes the live site and needs ANTENA_ALLOW_PUBLIC=true.
+// FromEnv reads ANTENA_BUCKET and ANTENA_PREFIX. ANTENA_PREFIX has no
+// fallback: a run that forgot it stops instead of writing somewhere. An empty
+// prefix writes the live site and needs ANTENA_ALLOW_PUBLIC=true; a trial run
+// uses "preview", which the bucket lifecycle expires after a day.
 func FromEnv(getenv func(string) string, lookup func(string) (string, bool), client API) (*Store, error) {
 	bucket, ok := lookup("ANTENA_BUCKET")
 	if !ok {
@@ -40,7 +42,7 @@ func FromEnv(getenv func(string) string, lookup func(string) (string, bool), cli
 	}
 	prefix, ok := lookup("ANTENA_PREFIX")
 	if !ok {
-		prefix = "migration-preview"
+		return nil, errors.New(`ANTENA_PREFIX is not set; set it to "" (with ANTENA_ALLOW_PUBLIC=true) for the live site or to "preview" for a trial run`)
 	}
 	prefix = slashes.ReplaceAllString(prefix, "")
 	if prefix == "" && getenv("ANTENA_ALLOW_PUBLIC") != "true" {

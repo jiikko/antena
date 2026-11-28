@@ -24,7 +24,7 @@ func TestKeys(t *testing.T) {
 	}{
 		{map[string]string{"ANTENA_PREFIX": "", "ANTENA_ALLOW_PUBLIC": "true"}, "state/posts.json", "locks/antena-run.lock", "index.html"},
 		{map[string]string{"ANTENA_PREFIX": "/go-preview/"}, "state/go-preview/posts.json", "locks/go-preview/antena-run.lock", "go-preview/index.html"},
-		{map[string]string{}, "state/migration-preview/posts.json", "locks/migration-preview/antena-run.lock", "migration-preview/index.html"},
+		{map[string]string{"ANTENA_PREFIX": "preview"}, "state/preview/posts.json", "locks/preview/antena-run.lock", "preview/index.html"},
 	}
 	for _, c := range cases {
 		get, look := env(c.env)
@@ -35,6 +35,14 @@ func TestKeys(t *testing.T) {
 		if s.StateKey() != c.state || s.LockKey() != c.lock || s.Key("index.html") != c.page {
 			t.Errorf("%v: %s %s %s", c.env, s.StateKey(), s.LockKey(), s.Key("index.html"))
 		}
+	}
+}
+
+// A run without ANTENA_PREFIX stops; it never falls back to some prefix.
+func TestMissingPrefixIsAnError(t *testing.T) {
+	get, look := env(map[string]string{"ANTENA_ALLOW_PUBLIC": "true"})
+	if s, err := FromEnv(get, look, nil); err == nil {
+		t.Fatalf("want an error, got prefix %q", s.Prefix)
 	}
 }
 

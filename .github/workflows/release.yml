@@ -127,7 +127,7 @@ jobs:
             --max-retries=0 \
             --set-env-vars="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID},AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY},ANTENA_PREFIX=${NEXT_PREFIX},ANTENA_ALLOW_PUBLIC=${NEXT_ALLOW_PUBLIC}"
 
-          # Read the prefix back: a dropped empty value would silently fall back to migration-preview.
+          # Read the prefix back: a dropped empty value would make the batch refuse to run (ANTENA_PREFIX is required).
           # Read the command back too: leftover arguments would be passed to the Go binary.
           actual=$(gcloud run jobs describe "$NEXT_JOB_NAME" --project="$PROJECT_ID" --region="$JOB_REGION" --format=json |
             python3 -c 'import json, sys; c=json.load(sys.stdin)["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]; env=c.get("env", []); print(json.dumps([c.get("command", []), c.get("args", []), next((e.get("value", "") for e in env if e["name"] == "ANTENA_PREFIX"), "<unset>")]))')

@@ -19,8 +19,8 @@ import (
 const golden = "testdata"
 
 func TestGoldenPages(t *testing.T) {
-	// pages/: live keys; pages-preview/: links under /migration-preview and noindex.
-	for prefix, sub := range map[string]string{"": "pages", "migration-preview": "pages-preview"} {
+	// pages/: live keys; pages-preview/: links under /preview and noindex.
+	for prefix, sub := range map[string]string{"": "pages", "preview": "pages-preview"} {
 		t.Run(sub, func(t *testing.T) { checkGolden(t, prefix, sub) })
 	}
 }

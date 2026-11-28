@@ -11,7 +11,7 @@
 | 空（本番） | `state/posts.json` | `locks/antena-run.lock` | `index.html` など |
 | `<p>`（shadow） | `state/<p>/posts.json` | `locks/<p>/antena-run.lock` | `<p>/index.html` など |
 
-- prefix の前後の `/` は落とす。指定しないときの prefix は `migration-preview`
+- prefix の前後の `/` は落とす。`ANTENA_PREFIX` を指定しないと実行は失敗する（2026-11-28 までは `migration-preview` に書いた）。試しに動かすときの prefix は `preview`
 - prefix が違えば、記事状態とロックは別のものになる。shadow の実行は本番の記事状態を読まず、書かず、本番とロックを取り合わない
 - `state/` と `locks/` は必ずキーの先頭に置く。バケットポリシーの `HideMigrationState` が `state/*` と `locks/*` をサイトから読めなくしているのは、この位置に限られる（`flow.md`「記事状態の置き場」）
 
@@ -104,6 +104,6 @@ Go の実装（`batch/`）は、前の Ruby の実装（2026-11-28 まで本番�
 
 ## 別の実装を本番へ入れるとき
 
-1. 別の実装を、prefix `migration-preview` で動かす。記事状態は `state/migration-preview/posts.json` になり、本番の記事状態に触れない。ページはライフサイクルで1日後に消えるので、片付けが要らない（別の prefix を使うなら、終わった後にページと `state/<prefix>/` を消す）。Go の実装を手元で prefix を指定せずに動かすときもこの prefix になるので、shadow の間は手で動かさない
-2. 本番と同じ記事から始めて比べたいなら、始める前に `state/posts.json` を `state/migration-preview/posts.json` へコピーする。コピーしないと空から始まり、「直近2日」が揃うまで2日ほどかかる
+1. 別の実装を、prefix `preview` で動かす。記事状態は `state/preview/posts.json` になり、本番の記事状態に触れない。ページはライフサイクルで1日後に消えるので、片付けが要らない（`state/preview/` は消えないので、終わったら消す。別の prefix を使うなら、ページも消す）。shadow の間は、手で同じ prefix の実行をしない（shadow と記事状態を取り合う）
+2. 本番と同じ記事から始めて比べたいなら、始める前に `state/posts.json` を `state/preview/posts.json` へコピーする。コピーしないと空から始まり、「直近2日」が揃うまで2日ほどかかる
 3. 切り替えるときは、別の実装の prefix を空にする。本番と同じ `state/posts.json` とロックを使うので、旧い実装と同時に動いても、ロックで片方が飛ばされる。旧い実装の Scheduler を止めてから、新しい方の Scheduler を動かす

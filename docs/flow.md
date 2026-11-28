@@ -56,14 +56,14 @@ Cloud Scheduler antena-fetch-posts-next-scheduler-trigger（30分おき・8〜23
 | `state/posts.json` | 全記事の状態。無ければ実行が空から作り（「記事状態の始まりと作り直し」）、以後は読み書きする |
 | `locks/antena-run.lock` | 多重起動を防ぐ一時ロック。バッチ開始時に作成し、終了時に削除する |
 
-これは本番（prefix が空）のキー。prefix を付けた実行（`migration-preview` や、別の実装の shadow）は `state/<prefix>/posts.json` と `locks/<prefix>/antena-run.lock` を使い、本番の記事状態に触れない。中身の形式とロックの取り方、別の実装を並べて動かす手順は `state-format.md` にある。
+これは本番（prefix が空）のキー。prefix を付けた実行（試しに動かすときの `preview` や、別の実装の shadow）は `state/<prefix>/posts.json` と `locks/<prefix>/antena-run.lock` を使い、本番の記事状態に触れない。中身の形式とロックの取り方、別の実装を並べて動かす手順は `state-format.md` にある。
 
 同じバケットに置くために、`prpr-antena` に次の設定を入れてある（2026-11-26 に適用）。
 
 | 設定 | 中身 | 無いと起きること |
 | --- | --- | --- |
 | バケットポリシーの `HideMigrationState` | CloudFront の OAI に `state/*` と `locks/*` の GetObject を拒否する | `https://prpr-antena.com/state/posts.json` で全記事の本文が読める |
-| ライフサイクル | 1日で消すのは `sites/`・`migration-preview/`・`migration/` だけ。以前は全キーが対象だった | `state/posts.json` が1日で消える |
+| ライフサイクル | 1日で消すのは `sites/` と `preview/` だけ（2026-11-28 に `migration-preview/`・`migration/` から替えた）。以前は全キーが対象だった | `state/posts.json` が1日で消える |
 
 トップページとカテゴリのページは自動では消えない。バッチが止まっても、古い内容のまま表示され続ける。`sites/` は1日で消えるが、バッチが毎日書き直す（夜間の停止は9時間）。バージョニングは無効のまま（ユーザー判断）。
 
